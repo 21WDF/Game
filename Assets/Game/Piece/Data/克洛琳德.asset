@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d, type: 3}
+  m_Name: "\u514B\u6D1B\u7433\u5FB7"
+  m_EditorClassIdentifier: Assembly-CSharp::PieceData
+  id: 12
+  displayName: "\u514B\u6D1B\u7433\u5FB7"
+  maxHP: 100
+  attack: 20
+  defense: 5
+  baseEnergyRegen: 0
+  baseHPRegen: 0
+  moveConfig:
+    providerClassName: StraightPassProvider
+    providerJsonParams: 
+    baseRange: 4
+  attackConfig:
+    providerClassName: CircleAttackProvider
+    providerJsonParams: 
+    baseRange: 1
+  prefab: {fileID: 8756066528402340566, guid: 3ca00b0c31149314dab25c63b93e758a, type: 3}
+  isSummon: 0
+  innateElement: 3
+  builtInPassives:
+  - className: VoltPathPassive
+    jsonParams: '{"baseDamage":0,"attackPercent":100,"elemental":true}'
+    passiveName: 
+    isUnique: 0
+    uniqueId: 
+  ultimateConfig:
+    ultimateName: "\u96F7\u9A70\u7A81\u8FDB"
+    energyRequired: 100
+    energyPerMove: 5
+    energyPerAttack: 15
+    requiresTarget: 1
+    targetMode: 2
+    tileTargetRange: 6
+    tileTargetShape: 1
+    effectClassName: ThunderDashUltimate
+    effectJsonParams: '{"healAmount":10}'
+  usesChargeSystem: 0
+  maxChargeStacks: 3

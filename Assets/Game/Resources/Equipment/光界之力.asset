@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fa04dc744d7247a4b6cccc7102e23959, type: 3}
+  m_Name: "\u5149\u754C\u4E4B\u529B"
+  m_EditorClassIdentifier: Assembly-CSharp::EquipmentData
+  id: 17
+  displayName: "\u5149\u754C\u4E4B\u529B"
+  description: 
+  tier: 3
+  price: 100
+  icon: {fileID: 21300000, guid: db3f7554397539b47a057661db3b6580, type: 3}
+  bonusHP: 0
+  bonusAttack: 3
+  bonusDefense: 0
+  bonusMoveRange: 0
+  bonusAttackRange: 0
+  bonusEnergyPerTurn: 0
+  bonusAPCap: 0
+  passives:
+  - className: ReactionBoostPassive
+    jsonParams: 
+    passiveName: 
+    isUnique: 0
+    uniqueId: 

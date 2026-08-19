@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d, type: 3}
+  m_Name: "\u5B89\u67CF"
+  m_EditorClassIdentifier: Assembly-CSharp::PieceData
+  id: 13
+  displayName: "\u5B89\u67CF"
+  maxHP: 80
+  attack: 12
+  defense: 5
+  baseEnergyRegen: 0
+  baseHPRegen: 0
+  moveConfig:
+    providerClassName: FreeMoveProvider
+    providerJsonParams: 
+    baseRange: 3
+  attackConfig:
+    providerClassName: CircleAttackProvider
+    providerJsonParams: 
+    baseRange: 4
+  prefab: {fileID: 3430940740496614563, guid: 1f52a7385c2eea64b9ee3ccc815032c0, type: 3}
+  isSummon: 0
+  innateElement: 1
+  builtInPassives:
+  - className: DoubleStrikePassive
+    jsonParams: '{"percent":100}'
+    passiveName: 
+    isUnique: 0
+    uniqueId: 
+  ultimateConfig:
+    ultimateName: "\u5154\u5154\u4F2F\u7235"
+    energyRequired: 100
+    energyPerMove: 5
+    energyPerAttack: 15
+    requiresTarget: 1
+    targetMode: 2
+    tileTargetRange: 5
+    tileTargetShape: 0
+    effectClassName: BaronBunnyUltimate
+    effectJsonParams: '{"puppetPieceId":14}'
+  usesChargeSystem: 0
+  maxChargeStacks: 3
