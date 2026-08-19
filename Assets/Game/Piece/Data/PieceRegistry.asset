@@ -14,17 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PieceRegistry
   pieces:
   - {fileID: 11400000, guid: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6, type: 2}
-  - {fileID: 11400000, guid: b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7, type: 2}
-  - {fileID: 11400000, guid: 462090d1f7c644048eafe434aac93161, type: 2}
-  - {fileID: 11400000, guid: cda4e70115904bdca94f2b2743abd71a, type: 2}
-  - {fileID: 11400000, guid: 685a0ac3b5a34229b815724d68c2998b, type: 2}
-  - {fileID: 11400000, guid: 3d011b58e14344a289a7d747b876dda9, type: 2}
-  - {fileID: 11400000, guid: e7377b0b29964e8f8958de85144abe8f, type: 2}
-  - {fileID: 11400000, guid: e608d9cf42cc491abf10a5638e57e074, type: 2}
-  - {fileID: 11400000, guid: f5778efe07654567a9ca0aa9e6533151, type: 2}
   - {fileID: 11400000, guid: 521bb6e77b3880b47b15d26f85cc6d9f, type: 2}
-  - {fileID: 11400000, guid: 444aae720cf701846a45d0cd8d47f0a4, type: 2}
   - {fileID: 11400000, guid: 8b17a0d86b6a92d4bb835a6c148b1676, type: 2}
+  - {fileID: 11400000, guid: 444aae720cf701846a45d0cd8d47f0a4, type: 2}
   - {fileID: 11400000, guid: bf014cc4a82ccf14b8c06a71b83d21a7, type: 2}
   - {fileID: 11400000, guid: 6779a756a8efb7745822a5f95bba352c, type: 2}
   - {fileID: 11400000, guid: 2bd8f100e6c5ef348ab090fd096a372b, type: 2}
+  - {fileID: 11400000, guid: 5f8df7881e1656b4293773cc7d8cdbc9, type: 2}
+  - {fileID: 11400000, guid: 10a39f43f17d42642bb7399bceecfec1, type: 2}
+  - {fileID: 11400000, guid: 341aa5b8484c71f44852a30ebdf85203, type: 2}

@@ -33,8 +33,8 @@ public class DebugManager : MonoBehaviour
     public bool enableDebugMode = true;
 
     [Header("预设对阵（长度 7；为空或不足 7 自动用 PieceRegistry 前 N 个 id 补全；多于 7 截断）")]
-    public int[] p1PieceIds = new int[] { 1, 2, 3, 4, 5, 6, 7 };
-    public int[] p2PieceIds = new int[] { 1, 2, 3, 4, 5, 6, 7 };
+    public int[] p1PieceIds = new int[] { 1, 10, 11, 12, 13, 15, 16 };
+    public int[] p2PieceIds = new int[] { 1, 10, 11, 12, 13, 15, 16 };
 
     [Header("测试参数（运行时修改立即生效）")]
     [Tooltip("P1 金币（值变化时设为此值，非持续锁定）")]

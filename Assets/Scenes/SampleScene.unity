@@ -2281,8 +2281,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DebugManager
   enableDebugMode: 1
-  p1PieceIds: 01000000020000000d0000000b000000090000000a0000000c000000
-  p2PieceIds: 01000000020000000300000004000000050000000600000007000000
+  p1PieceIds: 010000000a0000000b0000000c0000000d0000000f00000010000000
+  p2PieceIds: 010000000a0000000b0000000c0000000d0000000f00000010000000
   testGoldP1: 1000
   testGoldP2: 9999
   infiniteAP: 0
@@ -2514,8 +2514,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3b54f3a4026a24b449aedc87a2c590a8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameSetup
-  p1PieceData: {fileID: 11400000, guid: b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7, type: 2}
-  p2PieceData: {fileID: 11400000, guid: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6, type: 2}
+  p1PieceData: {fileID: 0}
+  p2PieceData: {fileID: 0}
   p1StartCoord: {x: -3, y: 0}
   p2StartCoord: {x: 3, y: 0}
 --- !u!4 &520619108
