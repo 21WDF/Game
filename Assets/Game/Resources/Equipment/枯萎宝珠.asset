@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fa04dc744d7247a4b6cccc7102e23959, type: 3}
+  m_Name: "\u67AF\u840E\u5B9D\u73E0"
+  m_EditorClassIdentifier: Assembly-CSharp::EquipmentData
+  id: 12
+  displayName: "\u67AF\u840E\u5B9D\u73E0"
+  description: "\u653B\u51FB\u547D\u4E2D\u540E\u76EE\u6807-3\u70B9\u9632\u5FA1\uFF0C\u53EF\u53E0\u52A0\uFF0C\u6301\u7EED4\u56DE\u5408"
+  tier: 1
+  price: 103
+  icon: {fileID: 21300000, guid: c6dd4b10c43254b4082f2f02048dee64, type: 3}
+  bonusHP: 0
+  bonusAttack: 0
+  bonusDefense: 0
+  bonusMoveRange: 0
+  bonusAttackRange: 0
+  bonusEnergyPerTurn: 2
+  bonusAPCap: 0
+  passives:
+  - className: WitherPassive
+    jsonParams: '{"defenseReduction":3,"duration":4}'
+    passiveName: 
+    isUnique: 0
+    uniqueId: 

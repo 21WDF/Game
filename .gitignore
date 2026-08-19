@@ -1,0 +1,45 @@
+# ===== Unity 标准忽略 =====
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+
+# ===== IDE / 工具 =====
+.vs/
+.vscode/
+.idea/
+*.csproj
+*.sln
+*.slnx
+*.user
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# ===== 系统 =====
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
+
+# ===== 关键：Unity 打包与库产物 =====
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+# ===== 保留 Packages 的 manifest（依赖锁定），但忽略包缓存 =====
+/[Pp]ackages/*/
+!/[Pp]ackages/manifest.json
+!/[Pp]ackages/packages-lock.json
+
+# ===== 保留 .workbuddy 但忽略内部临时 =====
+.workbuddy/artifacts/

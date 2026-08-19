@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fa04dc744d7247a4b6cccc7102e23959, type: 3}
+  m_Name: "\u6A61\u6728\u76FE"
+  m_EditorClassIdentifier: Assembly-CSharp::EquipmentData
+  id: 2
+  displayName: "\u6A61\u6728\u76FE"
+  description: "\u4E16\u754C\u6700\u575A\u786C\u7684\u76FE"
+  price: 25
+  icon: {fileID: 21300000, guid: a9cbf51461d59d642a71f4452dfcae29, type: 3}
+  bonusHP: 0
+  bonusAttack: 0
+  bonusDefense: 3
+  bonusMoveRange: 0
+  bonusAttackRange: 0
+  bonusAPCap: 0
+  passives: []

@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d, type: 3}
+  m_Name: "\u5154\u5154\u4F2F\u7235"
+  m_EditorClassIdentifier: Assembly-CSharp::PieceData
+  id: 14
+  displayName: "\u5154\u5154\u4F2F\u7235"
+  maxHP: 9999
+  attack: 0
+  defense: 0
+  baseEnergyRegen: 0
+  baseHPRegen: 0
+  moveConfig:
+    providerClassName: FreeMoveProvider
+    providerJsonParams: 
+    baseRange: 0
+  attackConfig:
+    providerClassName: CircleAttackProvider
+    providerJsonParams: 
+    baseRange: 1
+  prefab: {fileID: 371308782798127710, guid: fe7fc39d89f60f54faa2be2a6126df10, type: 3}
+  isSummon: 1
+  innateElement: 0
+  builtInPassives:
+  - className: PuppetPassive
+    jsonParams: '{"hitsToDetonate":3,"maxTurns":6,"tauntRange":2,"explosionRadius":1,"baseDamage":0,"attackPercent":100}'
+    passiveName: 
+    isUnique: 0
+    uniqueId: 
+  ultimateConfig:
+    ultimateName: 
+    energyRequired: 100
+    energyPerMove: 5
+    energyPerAttack: 15
+    requiresTarget: 1
+    targetMode: 0
+    tileTargetRange: 0
+    tileTargetShape: 0
+    effectClassName: 
+    effectJsonParams: 
+  usesChargeSystem: 0
+  maxChargeStacks: 3

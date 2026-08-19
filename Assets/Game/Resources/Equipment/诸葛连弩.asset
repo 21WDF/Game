@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fa04dc744d7247a4b6cccc7102e23959, type: 3}
+  m_Name: "\u8BF8\u845B\u8FDE\u5F29"
+  m_EditorClassIdentifier: Assembly-CSharp::EquipmentData
+  id: 16
+  displayName: "\u8BF8\u845B\u8FDE\u5F29"
+  description: "\u672C\u6B21\u653B\u51FB\u5B8C\u5168\u514D AP\uFF0C\u51B7\u53744\u56DE\u5408\n\u643A\u5E26\u8005\u53EF\u4EE5\u8FDE\u7EED\u653B\u51FB"
+  tier: 1
+  price: 92
+  icon: {fileID: 21300000, guid: cbb8916c9d4194c49af5db8bbe287a9c, type: 3}
+  bonusHP: 0
+  bonusAttack: 6
+  bonusDefense: 0
+  bonusMoveRange: 0
+  bonusAttackRange: 0
+  bonusEnergyPerTurn: 0
+  bonusAPCap: 0
+  passives:
+  - className: FreeAPPassive
+    jsonParams: '{"freeType":"Attack","cooldownTurns":4,"gainEnergy":false}'
+    passiveName: 
+    isUnique: 0
+    uniqueId: 

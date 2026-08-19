@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d, type: 3}
+  m_Name: "\u675C\u6797"
+  m_EditorClassIdentifier: Assembly-CSharp::PieceData
+  id: 10
+  displayName: "\u675C\u6797"
+  maxHP: 100
+  attack: 20
+  defense: 5
+  baseEnergyRegen: 0
+  baseHPRegen: 0
+  moveConfig:
+    providerClassName: FreeMoveProvider
+    providerJsonParams: 
+    baseRange: 3
+  attackConfig:
+    providerClassName: LineAttackProvider
+    providerJsonParams: 
+    baseRange: 3
+  prefab: {fileID: 5384962998032955372, guid: 566e4a80d357e3d458478da42e4b9499, type: 3}
+  innateElement: 1
+  builtInPassives:
+  - className: FlameNovaPassive
+    jsonParams: '{"baseDamage":0,"attackPercent":50,"splashRadius":2,"goldPercent":0,"elemental":true}'
+    passiveName: 
+    isUnique: 0
+    uniqueId: 
+  ultimateConfig:
+    ultimateName: "\u8D2F\u65E5\u708E\u67AA"
+    energyRequired: 60
+    energyPerMove: 5
+    energyPerAttack: 15
+    requiresTarget: 1
+    targetMode: 2
+    tileTargetRange: 2
+    tileTargetShape: 0
+    effectClassName: FlameLanceUltimate
+    effectJsonParams: '{"length":6,"bonusDamage":0}'

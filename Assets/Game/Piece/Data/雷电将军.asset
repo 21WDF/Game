@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d, type: 3}
+  m_Name: "\u96F7\u7535\u5C06\u519B"
+  m_EditorClassIdentifier: Assembly-CSharp::PieceData
+  id: 17
+  displayName: "\u96F7\u7535\u5C06\u519B"
+  maxHP: 85
+  attack: 13
+  defense: 5
+  baseEnergyRegen: 0
+  baseHPRegen: 0
+  moveConfig:
+    providerClassName: FreeMoveProvider
+    providerJsonParams: 
+    baseRange: 3
+  attackConfig:
+    providerClassName: CircleAttackProvider
+    providerJsonParams: 
+    baseRange: 3
+  prefab: {fileID: 1084062599618379437, guid: aa60bfe7f215e7e478dabd97bc2cedf7, type: 3}
+  isSummon: 0
+  innateElement: 3
+  builtInPassives:
+  - className: StormEyePassive
+    jsonParams: '{"energyGain":10}'
+    passiveName: 
+    isUnique: 0
+    uniqueId: 
+  - className: CoordinatedStrikePassive
+    jsonParams: '{"baseDamage":0,"attackPercent":50,"energyPerAttack":5}'
+    passiveName: 
+    isUnique: 0
+    uniqueId: 
+  ultimateConfig:
+    ultimateName: "\u65E0\u60F3\u4E00\u5200"
+    energyRequired: 100
+    energyPerMove: 5
+    energyPerAttack: 15
+    requiresTarget: 1
+    targetMode: 2
+    tileTargetRange: 3
+    tileTargetShape: 0
+    effectClassName: MusouStrikeUltimate
+    effectJsonParams: '{"attackPercent":100,"synergyTurns":6}'
+  usesChargeSystem: 0
+  maxChargeStacks: 3

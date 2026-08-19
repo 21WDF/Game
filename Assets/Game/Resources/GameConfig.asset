@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0183d8608944a5e958a6ed30e49a99d, type: 3}
+  m_Name: GameConfig
+  m_EditorClassIdentifier: Assembly-CSharp::GameConfig
+  hexSize: 1.25
+  initialRadius: 4
+  baseAPPerTurn: 2
+  maxAPCap: 4
+  moveDurationPerTile: 0.4
+  walkRunThreshold: 2
+  walkAnimSpeed: 1
+  runAnimSpeed: 1
+  pieceYOffset: 0.12
+  actedPieceColor: {r: 0.55, g: 0.55, b: 0.55, a: 1}
+  goldPerDamage: 1
+  goldPerDamageReceived: 0.3
+  startingGold: 50
+  overlayMoveColor: {r: 0.2, g: 0.4, b: 1, a: 0.39215687}
+  overlayAttackColor: {r: 1, g: 0.2, b: 0.2, a: 0.39215687}
+  overlayAttackEnemyColor: {r: 0.6855345, g: 0.10563253, b: 0.10563253, a: 0.39215687}
+  overlayWaypointColor: {r: 0.2, g: 1, b: 0.3, a: 0.5}
+  overlayHoverColor: {r: 0.3679244, g: 1, b: 0.83598465, a: 0.39215687}
+  pathColor: {r: 1, g: 0.9191389, b: 0, a: 0.39215687}
+  pathWidth: 0.1
+  floatDamageFire: {r: 1, g: 0.4, b: 0.2, a: 1}
+  floatDamageWater: {r: 0.2, g: 0.5, b: 1, a: 1}
+  floatDamageThunder: {r: 1, g: 0.8, b: 0, a: 1}
+  floatDamageIce: {r: 0.5, g: 0.8, b: 1, a: 1}
+  floatDamagePhysical: {r: 1, g: 1, b: 1, a: 1}
+  floatReactionDamage: {r: 0.8, g: 0.4, b: 1, a: 1}
+  floatReactionVaporize: {r: 1, g: 0.4, b: 0.2, a: 1}
+  floatReactionMelt: {r: 1, g: 0.3, b: 0.3, a: 1}
+  floatReactionOverload: {r: 1, g: 0.8, b: 0, a: 1}
+  floatReactionElectro: {r: 0.6, g: 0.4, b: 1, a: 1}
+  floatReactionFrozen: {r: 0.5, g: 0.8, b: 1, a: 1}
+  floatReactionSuperconduct: {r: 0.4, g: 0.8, b: 1, a: 1}
+  floatDurationPhysical: 1.6
+  floatDistancePhysical: 0.8
+  floatFontSizePhysical: 18
+  floatDurationReaction: 1.6
+  floatDistanceReaction: 1
+  floatFontSizeReaction: 20
+  floatDurationHeal: 0.6
+  floatDistanceHeal: 0.8
+  floatFontSizeHeal: 9
+  floatDurationArmor: 0.8
+  floatDistanceArmor: 0.8
+  floatFontSizeArmor: 8
+  floatDurationCrit: 1
+  floatDistanceCrit: 2.5
+  floatFontSizeCrit: 16
+  floatAlphaFadeStart: 0.8
