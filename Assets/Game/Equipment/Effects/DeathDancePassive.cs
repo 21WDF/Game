@@ -65,15 +65,20 @@ public class DeathDancePassive : IPassiveEffect
 
         settle = Mathf.Max(1, settle);   // 结算伤害最低 1（池未清空则至少扣 1）
 
-        // 扣血 + 打断计时 + 受伤通知（Dot 语义；不触发 OnAttacked/OnDamageDealt/元素/金币/能量）
-        owner.TakeDamage(settle);
-        owner.TurnsSinceDamaged = 0;
-        foreach (var passive in owner.GetAllPassives())
-            passive.OnDamageReceived(owner, settle, DamageSource.Dot);
-        // 跳字（View 层反馈；池/View 未就绪静默跳过；延迟伤害是物理直伤——继承受击的物理类型，用物理白纯色块）
-        if (FloatingTextPool.Instance != null && owner.View != null)
-            FloatingTextPool.Instance.ShowDamage(settle, owner.View.transform.position,
-                ElementColorMapper.GetDamageKindColor(DamageKind.Physical), DamageKind.Physical);
+        // 护盾拦截（基座）：拦在扣血之前；延迟伤害为物理无元素直伤。
+        // 被拦截时跳过扣血/打断计时/受伤通知/跳字（延迟池照常消耗——盾挡的是本次结算，不冻结延迟池）
+        if (!PieceManager.TryAbsorbByShield(owner, settle, DamageKind.Physical, ElementType.None))
+        {
+            // 扣血 + 打断计时 + 受伤通知（Dot 语义；不触发 OnAttacked/OnDamageDealt/元素/金币/能量）
+            owner.TakeDamage(settle);
+            owner.TurnsSinceDamaged = 0;
+            foreach (var passive in owner.GetAllPassives())
+                passive.OnDamageReceived(owner, settle, DamageSource.Dot);
+            // 跳字（View 层反馈；池/View 未就绪静默跳过；延迟伤害是物理直伤——继承受击的物理类型，用物理白纯色块）
+            if (FloatingTextPool.Instance != null && owner.View != null)
+                FloatingTextPool.Instance.ShowDamage(settle, owner.View.transform.position,
+                    ElementColorMapper.GetDamageKindColor(DamageKind.Physical), DamageKind.Physical);
+        }
 
         _pendingDamage -= settle;
         _pendingTurns--;

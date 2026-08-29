@@ -105,10 +105,14 @@ public class DomainPassive : IPassiveEffect
             }
 
             // 统一入口（减伤/易伤/首伤=1/死亡之蔑/反甲/OnDamageReceived 全走）+ 元素附着（gauge=1 普攻口径）+ 金币双边
-            PieceManager.Instance.ApplyIncomingDamage(victim, damage, owner, DamageSource.Dot, DamageKind.Physical, element);
+            // 返回 false = 被护盾拦截 → 不给金币（免伤 = 无伤害收益）；元素附着/反应照常
+            bool landed = PieceManager.Instance.ApplyIncomingDamage(victim, damage, owner, DamageSource.Dot, DamageKind.Physical, element);
             PieceManager.Instance.ApplyElementInteraction(victim, owner, element, 1, reaction);
-            GoldManager.Instance?.OnDamageDealt(owner, damage);
-            GoldManager.Instance?.OnDamageReceived(victim, damage);
+            if (landed)
+            {
+                GoldManager.Instance?.OnDamageDealt(owner, damage);
+                GoldManager.Instance?.OnDamageReceived(victim, damage);
+            }
 
             if (victim.IsDead)
                 PieceManager.Instance.DestroyPiece(victim, owner);

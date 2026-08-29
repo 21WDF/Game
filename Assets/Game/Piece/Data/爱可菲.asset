@@ -21,26 +21,26 @@ MonoBehaviour:
   baseHPRegen: 0
   moveConfig:
     providerClassName: FreeMoveProvider
-    providerJsonParams:
+    providerJsonParams: 
     baseRange: 3
   attackConfig:
     providerClassName: CircleAttackProvider
-    providerJsonParams:
+    providerJsonParams: 
     baseRange: 3
-  prefab: {fileID: 0}
+  prefab: {fileID: 2140978841246180948, guid: fc3b250326bfafd4a8a1e282205f38cb, type: 3}
   isSummon: 0
   innateElement: 4
   builtInPassives:
   - className: FrostBreakPassive
     jsonParams: '{"amount":4,"duration":4}'
-    passiveName:
+    passiveName: 
     isUnique: 0
-    uniqueId:
+    uniqueId: 
   - className: BlizzardPassive
     jsonParams: '{"radius":3,"baseDamage":0,"attackPercent":30}'
-    passiveName:
+    passiveName: 
     isUnique: 0
-    uniqueId:
+    uniqueId: 
   ultimateConfig:
     ultimateName: "\u6781\u5BD2\u9957\u5BB4"
     energyRequired: 100

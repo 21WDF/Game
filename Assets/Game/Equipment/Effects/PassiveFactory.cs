@@ -92,6 +92,15 @@ public static class PassiveFactory
             case "CoordinatedStrikePassive":
                 var cs = ParseParams<CoordinatedStrikeParams>(jsonParams);
                 return new CoordinatedStrikePassive(cs.baseDamage, cs.attackPercent, cs.energyPerAttack);
+            case "HolyShieldPassive":
+                var hs = ParseParams<HolyShieldParams>(jsonParams);
+                return new HolyShieldPassive(hs.stacks, ParseShieldElement(hs.element));
+            case "BloodCostPassive":
+                // 代价型被动①（地下交易装备）：每回合开始扣 X HP（jsonParams {"hpPerTurn":2}）
+                return new BloodCostPassive(ParseParams<BloodCostParams>(jsonParams).hpPerTurn);
+            case "APCostPassive":
+                // 代价型被动②（地下交易装备）：装备者自己回合开始扣 N AP（jsonParams {"apPerTurn":1}）
+                return new APCostPassive(ParseParams<APCostParams>(jsonParams).apPerTurn);
             case "ElementalCorePassive":
                 var ec = ParseParams<ElementalCoreParams>(jsonParams);
                 return new ElementalCorePassive(ParseElement(ec.element), uniqueId,
@@ -324,6 +333,39 @@ public static class PassiveFactory
         public int baseDamage = 0;         // 协同攻击基础伤害
         public int attackPercent = 50;     // 协同攻击力百分比（雷电将军 EffectiveAttack；playtest 调参用）
         public int energyPerAttack = 5;    // 雷电将军普攻时全体己方回能量
+    }
+
+    /// <summary>HolyShieldPassive（圣盾·护盾一期测试被动）的构造参数</summary>
+    [System.Serializable]
+    private class HolyShieldParams
+    {
+        public int stacks = 3;             // 护盾层数（上限 3；施加时 Clamp）
+        public string element = "None";    // 护盾元素标签（字符串手动解析：None/Fire/Water/Thunder/Ice）
+    }
+
+    [System.Serializable]
+    private class BloodCostParams
+    {
+        public int hpPerTurn = 2;          // 代价型被动①：每回合开始扣血量（任一方回合，同 DoT 口径）
+    }
+
+    [System.Serializable]
+    private class APCostParams
+    {
+        public int apPerTurn = 1;          // 代价型被动②：装备者自己回合开始扣 AP（refill 之后）
+    }
+
+    /// <summary>解析护盾元素标签：不区分大小写；无法识别回退 None（普通盾）。
+    /// 与 ParseElement（元素之力，Water 兜底）分开——护盾的默认语义是普通盾。</summary>
+    private static ElementType ParseShieldElement(string value)
+    {
+        if (string.IsNullOrEmpty(value) || value.Equals("None", System.StringComparison.OrdinalIgnoreCase))
+            return ElementType.None;
+        if (value.Equals("Fire", System.StringComparison.OrdinalIgnoreCase)) return ElementType.Fire;
+        if (value.Equals("Water", System.StringComparison.OrdinalIgnoreCase)) return ElementType.Water;
+        if (value.Equals("Thunder", System.StringComparison.OrdinalIgnoreCase)) return ElementType.Thunder;
+        if (value.Equals("Ice", System.StringComparison.OrdinalIgnoreCase)) return ElementType.Ice;
+        return ElementType.None;
     }
 
     /// <summary>ElementalCorePassive（四元素之力）的构造参数。

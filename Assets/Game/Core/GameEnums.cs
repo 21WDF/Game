@@ -51,6 +51,18 @@ public enum ReactionType
     Superconduct        // 超导
 }
 
+/// <summary>城邦类型（Pillar 3 城邦系统）：本局生效城邦由战前双方各选 4 个心仪城邦求交集随机确定</summary>
+public enum CityStateKind
+{
+    None = 0,           // 不归属任何城邦（通用装备兜底 / 城邦未定）
+    Trade = 1,          // 贸易
+    Merriment = 2,      // 欢愉
+    Monsoon = 3,        // 季风
+    Occult = 4,         // 邪疑
+    War = 5,            // 战争
+    Element = 6         // 元素
+}
+
 /// <summary>装备分级（商店 Tab 分类用）</summary>
 public enum EquipmentTier
 {
@@ -60,12 +72,14 @@ public enum EquipmentTier
     CityState = 3       // 城邦（元素之力系列）
 }
 
-/// <summary>商店 Tab（前 4 个与 EquipmentTier 一一对应，GridItem 为道具页）</summary>
+/// <summary>商店 Tab（前 4 个与 EquipmentTier 一一对应，GridItem 为道具页，Auction 为拍卖行，Underground 为地下交易）</summary>
 public enum ShopTab
 {
     Basic = 0,          // 初级装备
     Intermediate = 1,   // 中级装备
     Advanced = 2,       // 高级装备
     CityState = 3,      // 城邦装备
-    GridItem = 4        // 棋盘道具
+    GridItem = 4,       // 棋盘道具
+    Auction = 5,        // 拍卖行（贸易之城·一期）
+    Underground = 6     // 地下交易（贸易之城·三期；仅当前活动玩家商行开启时可见）
 }

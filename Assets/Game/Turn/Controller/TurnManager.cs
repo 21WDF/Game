@@ -81,6 +81,12 @@ public class TurnManager : MonoBehaviour
 
         string playerName = _model.ActivePlayer == PlayerSide.P1 ? "玩家1" : "玩家2";
         Debug.Log($"========== 第 {_model.CurrentRound} 轮 · 第 {_model.CurrentTurn} 回合 · {playerName} 的回合 ==========");
+
+        // 城邦机制骨架钩子②：回合开始通知（一期空实现无行为；null 安全，不改任何现有回合逻辑）
+        CityStateManager.Instance?.NotifyTurnStart(_model.ActivePlayer);
+
+        // 季风之城（一期·四季+昼夜）：该方回合开始结算回血类效果（春；null 安全，非季风城邦内部直接返回）
+        MonsoonManager.Instance?.OnTurnStarted(_model.ActivePlayer);
     }
 
     /// <summary>每回合开始：结算 DoT、递减附着元素持续回合（&lt;=0 清除）、重置防御降低值</summary>
@@ -271,6 +277,32 @@ public class TurnManager : MonoBehaviour
         RegeneratePieces(_model.Player2Pieces);
 
         // 金币已改为伤害发生时实时到账，无需回合末结算
+
+        // 城邦机制骨架钩子③：回合结束通知（一期空实现无行为；null 安全，不改任何现有回合逻辑）
+        CityStateManager.Instance?.NotifyTurnEnd(_model.ActivePlayer);
+
+        // 贸易之城·拍卖：回合结束结算——倒计时按「回合」递减/归零成交/每 N 回合刷新（null 安全，纯通知入口）
+        AuctionManager.Instance?.OnTurnEnded();
+
+        // 贸易之城·二期（利息+信誉）：欠钱扣信誉计数按「回合」（每次任一方回合结束）；
+        // 利息结算与信誉恢复按「轮」——后手方（P2）结束行动 = 一轮完成（切回 P1 时 CurrentRound+1）
+        TradeCityManager.Instance?.OnTurnEnded();
+
+        // 贸易之城·三期（地下交易）：关闭检查按「回合」（信誉回升 → 重置）；概率掷骰按「轮」
+        UndergroundTradeManager.Instance?.OnTurnEnded();
+
+        // 季风之城（一期·四季+昼夜）：该方回合结束结算金币类（秋）/ 扣血类（冬）效果
+        //（null 安全；扣血走统一伤害入口，致死者在管理器内销毁后由下方 CheckGameOver 正常判定胜负）
+        MonsoonManager.Instance?.OnTurnEnded(_model.ActivePlayer);
+
+        if (_model.ActivePlayer == PlayerSide.P2)
+        {
+            TradeCityManager.Instance?.OnRoundEnded();
+            UndergroundTradeManager.Instance?.OnRoundEnded();
+            // 季风之城：季节/昼夜按「轮」推进（一轮完成 = 双方各行动一次；铁律：不按「回合」计）
+            MonsoonManager.Instance?.OnRoundEnded();
+        }
+
         // 切换玩家
         _model.SwitchActivePlayer();
 

@@ -76,13 +76,15 @@ public class FlameNovaPassive : IPassiveEffect
                 splash = Mathf.Max(1, Mathf.RoundToInt(raw));
             }
 
-            // 金币实时结算（goldPercent>0 时；比例口径同 Area 溅射，基于反应后最终伤害）
-            if (_goldPercent > 0f)
+            // 统一伤害入口：减伤/首伤=1/死亡延迟/免死/跳字/OnDamageReceived；
+            // 不触发 OnDamageDealt（防递归）、不给能量。
+            // 返回 false = 被护盾拦截 → 跳过金币（免伤 = 无伤害收益）
+            bool landed = PieceManager.Instance.ApplyIncomingDamage(enemy, splash, owner, DamageSource.Splash, DamageKind.Physical, element);
+
+            // 金币实时结算（goldPercent>0 且实际造成伤害时；比例口径同 Area 溅射，基于反应后最终伤害——数值不变，仅加拦截判断）
+            if (landed && _goldPercent > 0f)
                 GoldManager.Instance?.AddGold(owner.Owner, Mathf.RoundToInt(splash * _goldPercent));
 
-            // 统一伤害入口：减伤/首伤=1/死亡延迟/免死/跳字/OnDamageReceived；
-            // 不触发 OnDamageDealt（防递归）、不给能量
-            PieceManager.Instance.ApplyIncomingDamage(enemy, splash, owner, DamageSource.Splash, DamageKind.Physical, element);
             // 元素附着 + 反应状态副作用（gauge=1 同普攻；超导减防/感电DoT/冻结）
             PieceManager.Instance.ApplyElementInteraction(enemy, owner, element, 1, reaction);
 

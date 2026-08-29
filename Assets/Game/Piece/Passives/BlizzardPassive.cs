@@ -87,11 +87,15 @@ public class BlizzardPassive : IPassiveEffect
             else
                 damage = Mathf.Max(1, Mathf.RoundToInt(raw));
 
-            PieceManager.Instance.ApplyIncomingDamage(victim, damage, owner,
+            // 返回 false = 被护盾拦截 → 不给金币；元素附着/反应照常
+            bool landed = PieceManager.Instance.ApplyIncomingDamage(victim, damage, owner,
                 DamageSource.Ultimate, DamageKind.Magical, element);
             PieceManager.Instance.ApplyElementInteraction(victim, owner, element, 2, reaction);
-            GoldManager.Instance?.OnDamageDealt(owner, damage);
-            GoldManager.Instance?.OnDamageReceived(victim, damage);
+            if (landed)
+            {
+                GoldManager.Instance?.OnDamageDealt(owner, damage);
+                GoldManager.Instance?.OnDamageReceived(victim, damage);
+            }
 
             if (victim.IsDead)
                 PieceManager.Instance.DestroyPiece(victim, owner);

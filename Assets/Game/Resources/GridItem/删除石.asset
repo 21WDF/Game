@@ -14,9 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GridItemData
   id: 2
   displayName: "\u5220\u9664\u77F3"
+  icon: {fileID: 21300000, guid: 8cb6eb1bda6facf4cbe0541de1c14334, type: 3}
   price: 15
   apCost: 1
   effectClassName: RemoveTileEffect
-  effectJsonParams:
+  effectJsonParams: 
   requiresSelectedPiece: 0
   minTilesAfter: 7

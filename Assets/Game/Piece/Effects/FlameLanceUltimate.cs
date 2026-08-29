@@ -60,23 +60,33 @@ public class FlameLanceUltimate : IUltimateEffect
                 enemy.AffixedElement);
 
             // 统一伤害入口（触发 OnDamageReceived——打断再生计时/反甲等；不走 AttackPiece）
-            PieceManager.Instance.ApplyIncomingDamage(enemy, damage, caster, DamageSource.Ultimate, DamageKind.Physical, caster.Data.innateElement);
+            // 返回 false = 被护盾拦截 → 不给金币；元素附着/反应照常
+            bool landed = PieceManager.Instance.ApplyIncomingDamage(enemy, damage, caster, DamageSource.Ultimate, DamageKind.Physical, caster.Data.innateElement);
 
             // 元素附着与消耗（大招募发量=2，同烈焰斩）
+            // 护盾染色封印（元素城邦二期）：已染色护盾封印同元素附着 → 跳过附着写入（反应照常）
             if (caster.Data.innateElement != ElementType.None)
             {
-                var (resultElem, resultGauge) = ElementReactionTable.ResolveElementInteraction(
-                    enemy.AffixedElement, enemy.AffixedElementGauge,
-                    caster.Data.innateElement, 2);
-                enemy.AffixedElement = resultElem;
-                enemy.AffixedElementGauge = resultGauge;
+                if (!enemy.BlocksElementAttachment(caster.Data.innateElement))
+                {
+                    var (resultElem, resultGauge) = ElementReactionTable.ResolveElementInteraction(
+                        enemy.AffixedElement, enemy.AffixedElementGauge,
+                        caster.Data.innateElement, 2);
+                    enemy.AffixedElement = resultElem;
+                    enemy.AffixedElementGauge = resultGauge;
+                    // 染色：附着成功（结果非 None）→ 未染色护盾变为对应元素盾
+                    enemy.TryDyeShieldElement(resultElem);
+                }
                 if (reaction.DefenseReduction > 0)
                     enemy.CurrentDefenseReduction = reaction.DefenseReduction;
             }
 
-            // 金币实时到账（硬约束，同烈焰斩双边口径）
-            GoldManager.Instance?.OnDamageDealt(caster, damage);
-            GoldManager.Instance?.OnDamageReceived(enemy, damage);
+            // 金币实时到账（硬约束，同烈焰斩双边口径；护盾拦截时双方都无金币）
+            if (landed)
+            {
+                GoldManager.Instance?.OnDamageDealt(caster, damage);
+                GoldManager.Instance?.OnDamageReceived(enemy, damage);
+            }
 
             // 死亡销毁：射线上死者统一处理；点击格棋子留给 UseUltimateCore 尾部（防双重销毁）
             if (enemy.IsDead && !enemy.Coord.Equals(targetCoord))

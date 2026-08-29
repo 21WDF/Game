@@ -14,6 +14,8 @@ public class GoldModel
     public float GoldPerDamage { get; set; }
     public float GoldPerDamageReceived { get; set; }
     public int StartingGold { get; set; }
+    /// <summary>透支下限（负值，贸易之城·一期）：透支消费允许金币扣到此下限（可为负）；由 GoldManager 从 GameConfig 注入</summary>
+    public int OverdraftFloor { get; set; }
 
     // ---- 运行时数据 ----
     private readonly Dictionary<PlayerSide, int> _totalGold = new();
@@ -56,6 +58,17 @@ public class GoldModel
     public bool TrySpendGold(PlayerSide side, int amount)
     {
         if (!_totalGold.ContainsKey(side) || _totalGold[side] < amount) return false;
+        _totalGold[side] -= amount;
+        OnGoldSettled?.Invoke(side, _totalGold[side]);
+        return true;
+    }
+
+    /// <summary>透支消费（贸易之城·一期）：允许金币扣为负值（欠钱状态），但不得低于透支下限；
+    /// 金币充足时行为与 TrySpendGold 完全一致（透支是「放宽」而非「改变」正常扣款）</summary>
+    public bool TrySpendGoldWithOverdraft(PlayerSide side, int amount)
+    {
+        if (!_totalGold.ContainsKey(side)) _totalGold[side] = 0;
+        if (_totalGold[side] - amount < OverdraftFloor) return false;
         _totalGold[side] -= amount;
         OnGoldSettled?.Invoke(side, _totalGold[side]);
         return true;

@@ -28,6 +28,7 @@ MonoBehaviour:
     providerJsonParams: 
     baseRange: 3
   prefab: {fileID: 5384962998032955372, guid: 566e4a80d357e3d458478da42e4b9499, type: 3}
+  isSummon: 0
   innateElement: 1
   builtInPassives:
   - className: FlameNovaPassive
@@ -41,8 +42,10 @@ MonoBehaviour:
     energyPerMove: 5
     energyPerAttack: 15
     requiresTarget: 1
-    targetMode: 2
+    targetMode: 0
     tileTargetRange: 2
     tileTargetShape: 0
     effectClassName: FlameLanceUltimate
     effectJsonParams: '{"length":6,"bonusDamage":0}'
+  usesChargeSystem: 0
+  maxChargeStacks: 3

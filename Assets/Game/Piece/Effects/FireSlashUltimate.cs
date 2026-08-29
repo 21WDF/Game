@@ -28,23 +28,33 @@ public class FireSlashUltimate : IUltimateEffect
             caster.Data.innateElement,
             target.AffixedElement);
         // 统一伤害入口（不走 AttackPiece：不触发元素反应外的被动链/能量/吸血；但触发 OnDamageReceived——打断再生计时/反甲等）
-        PieceManager.Instance?.ApplyIncomingDamage(target, damage, caster, DamageSource.Ultimate, DamageKind.Physical, caster.Data.innateElement);
+        // 返回 false = 被护盾拦截 → 不给金币（免伤 = 无伤害收益）；元素附着/反应照常
+        bool landed = PieceManager.Instance?.ApplyIncomingDamage(target, damage, caster, DamageSource.Ultimate, DamageKind.Physical, caster.Data.innateElement) ?? false;
 
         // 元素附着与消耗（大招募发量=2）
+        // 护盾染色封印（元素城邦二期）：已染色护盾封印同元素附着 → 跳过附着写入（反应照常）
         if (caster.Data.innateElement != ElementType.None)
         {
-            var (resultElem, resultGauge) = ElementReactionTable.ResolveElementInteraction(
-                target.AffixedElement, target.AffixedElementGauge,
-                caster.Data.innateElement, 2);
-            target.AffixedElement = resultElem;
-            target.AffixedElementGauge = resultGauge;
+            if (!target.BlocksElementAttachment(caster.Data.innateElement))
+            {
+                var (resultElem, resultGauge) = ElementReactionTable.ResolveElementInteraction(
+                    target.AffixedElement, target.AffixedElementGauge,
+                    caster.Data.innateElement, 2);
+                target.AffixedElement = resultElem;
+                target.AffixedElementGauge = resultGauge;
+                // 染色：附着成功（结果非 None）→ 未染色护盾变为对应元素盾
+                target.TryDyeShieldElement(resultElem);
+            }
             if (reaction.DefenseReduction > 0)
                 target.CurrentDefenseReduction = reaction.DefenseReduction;
         }
 
-        // 金币实时到账（硬约束）
-        GoldManager.Instance?.OnDamageDealt(caster, damage);
-        GoldManager.Instance?.OnDamageReceived(target, damage);
+        // 金币实时到账（硬约束；护盾拦截时双方都无金币）
+        if (landed)
+        {
+            GoldManager.Instance?.OnDamageDealt(caster, damage);
+            GoldManager.Instance?.OnDamageReceived(target, damage);
+        }
 
         string reactionStr = reaction.Type != ReactionType.None ? $"，触发{reaction.Type}" : "";
         Debug.Log($"[FireSlashUltimate] {caster.Data.displayName} 烈焰斩 {target.Data.displayName}，" +

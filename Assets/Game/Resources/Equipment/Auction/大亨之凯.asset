@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fa04dc744d7247a4b6cccc7102e23959, type: 3}
+  m_Name: "\u5927\u4EA8\u4E4B\u51EF"
+  m_EditorClassIdentifier: Assembly-CSharp::EquipmentData
+  id: 23
+  displayName: "\u5927\u4EA8\u4E4B\u51EF"
+  description: "\u5927\u4EA8"
+  tier: 3
+  cityState: 1
+  price: 78
+  icon: {fileID: 21300000, guid: 441bca9941a189640b930c1b45122c08, type: 3}
+  bonusHP: 10
+  bonusAttack: 0
+  bonusDefense: 10
+  bonusMoveRange: 0
+  bonusAttackRange: 0
+  bonusEnergyPerTurn: 0
+  bonusAPCap: 0
+  passives: []

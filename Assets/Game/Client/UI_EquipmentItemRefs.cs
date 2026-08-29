@@ -4,7 +4,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// 装备槽位/背包装备项 UI 引用 —— 挂在装备项预制体上。
-/// 复用于「槽位」（已装备/空）与「背包列表项」。由 UI_EquipmentPanel 实例化后填充。
+/// 复用于「槽位」（已装备/空）、「背包装备列表项」与「道具列表项」。由 UI_BackpackSidebar 实例化后填充。
 ///
 /// 预制体结构（Editor 搭建）：
 ///   [root] (挂 UI_EquipmentItemRefs)

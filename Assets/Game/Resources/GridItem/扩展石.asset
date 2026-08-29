@@ -14,9 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GridItemData
   id: 1
   displayName: "\u6269\u5C55\u77F3"
+  icon: {fileID: 21300000, guid: dbc44b8f207a96d439acaadd01fcc985, type: 3}
   price: 20
   apCost: 1
   effectClassName: ExpandTileEffect
-  effectJsonParams:
+  effectJsonParams: 
   requiresSelectedPiece: 0
   minTilesAfter: 7

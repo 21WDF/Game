@@ -15,8 +15,9 @@ MonoBehaviour:
   id: 18
   displayName: "\u6F6E\u6D8C\u4E4B\u529B"
   description: 
-  price: 100
   tier: 3
+  cityState: 6
+  price: 100
   icon: {fileID: 21300000, guid: c32dd07ef14010d48b6bf3d8d56d707f, type: 3}
   bonusHP: 0
   bonusAttack: 0

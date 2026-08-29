@@ -20,6 +20,10 @@ public class EquipmentData : ScriptableObject
     [TextArea] public string description = "";
     public EquipmentTier tier = EquipmentTier.Basic;   // 装备分级（商店 Tab 分类用）
 
+    [Header("城邦归属")]
+    [Tooltip("归属城邦：None = 通用装备（城邦档下任何城邦都显示）；其余 = 城邦专属装备（仅当本局城邦 == 归属城邦时在商店显示）")]
+    public CityStateKind cityState = CityStateKind.None;
+
     [Header("经济")]
     public int price = 0;                   // 商店售价
 

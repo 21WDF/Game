@@ -25,6 +25,7 @@ public class EquipmentManager : MonoBehaviour
     // ---- 运行时数据 ----
     private readonly Dictionary<PlayerSide, List<EquipmentModel>> _backpack = new();
     private int _equipOrderCounter;   // 装备时间戳计数器（唯一被动「先进先出」先后判断用）
+    private static GameConfig _cachedConfig;   // GameConfig 缓存（容量校验查询用，避免每次购买重复 Load）
 
     // ---- 事件 ----
     /// <summary>某方装备/背包变化时触发（商店购买、装备、卸下均触发）</summary>
@@ -58,22 +59,53 @@ public class EquipmentManager : MonoBehaviour
     // ==========================================
     //  购买
     // ==========================================
-    /// <summary>为 side 购买指定装备。金币不足或装备无效则返回 false。</summary>
+    /// <summary>装备背包容量查询（缓存 GameConfig；缺失时兜底 5——与背包侧栏兜底口径一致）</summary>
+    private int GetItemCapacity()
+    {
+        if (_cachedConfig == null) _cachedConfig = Resources.Load<GameConfig>("GameConfig");
+        return _cachedConfig != null ? _cachedConfig.backpackEquipmentCapacity : 5;
+    }
+
+    /// <summary>为 side 购买指定装备。装备背包容量已满 / 金币不足（含透支额度后仍不足）或装备无效则返回 false。
+    /// 售价含信誉涨价（TradeCityManager.GetAdjustedPrice；管理器缺失/信誉 10 时 = 原价）。
+    /// 容量 = GameConfig.backpackEquipmentCapacity（与背包侧栏列容量同源；拍卖/地下交易等无偿获得不受此拦截）。</summary>
     public bool BuyEquipment(PlayerSide side, EquipmentData data)
     {
         if (data == null) return false;
 
-        if (GoldManager.Instance == null || !GoldManager.Instance.TrySpendGold(side, data.price))
+        // 容量校验（问题3：对应列已满拒绝购买，不扣金币不入背包）
+        int capacity = GetItemCapacity();
+        if (GetBackpack(side).Count >= capacity)
         {
-            Debug.Log($"[EquipmentManager] {side} 金币不足，无法购买 {data.displayName}");
+            Debug.Log($"[EquipmentManager] {side} 装备背包已满（{capacity}），无法购买 {data.displayName}");
             return false;
         }
+
+        int price = TradeCityManager.Instance != null
+            ? TradeCityManager.Instance.GetAdjustedPrice(side, data.price)
+            : data.price;
+
+        // 扣款走透支版（贸易之城·一期）：金币充足时行为与原 TrySpendGold 完全一致，透支是「放宽」而非「改变」
+        if (GoldManager.Instance == null || !GoldManager.Instance.TrySpendGoldWithOverdraft(side, price))
+        {
+            Debug.Log($"[EquipmentManager] {side} 金币不足（含透支额度），无法购买 {data.displayName}");
+            return false;
+        }
+
+        GrantEquipment(side, data);
+        Debug.Log($"[EquipmentManager] {side} 购买 {data.displayName}（花费 {price}），背包+1");
+        return true;
+    }
+
+    /// <summary>无偿授予装备入背包（拍卖成交交付用）：创建模型 + 工厂实例化被动，不扣金币</summary>
+    public bool GrantEquipment(PlayerSide side, EquipmentData data)
+    {
+        if (data == null) return false;
 
         var model = new EquipmentModel(data);
         InstantiatePassives(model);
         GetBackpack(side).Add(model);
         OnEquipmentChanged?.Invoke(side);
-        Debug.Log($"[EquipmentManager] {side} 购买 {data.displayName}（花费 {data.price}），背包+1");
         return true;
     }
 

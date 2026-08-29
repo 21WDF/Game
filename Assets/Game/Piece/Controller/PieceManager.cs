@@ -134,6 +134,10 @@ public class PieceManager : MonoBehaviour
             if (passive is VoltPathPassive vpp)
                 vpp.TriggerPathDamage(model, path);
 
+        // 飓风幸运方块（季风三期B）：移动经过即拾取（路径所有节点含终点；落点不必是该格）。
+        // 判断内聚 MonsoonManager（无方块时零开销直接返回）。
+        MonsoonManager.Instance?.OnPieceMovedAlongPath(model, path);
+
         // 构建世界坐标路径
         var worldPath = new List<Vector3>(path.Count);
         if (ChessBoardController.Instance != null)
@@ -215,39 +219,59 @@ public class PieceManager : MonoBehaviour
         int effectiveAttack = overrideAttack ?? attacker.EffectiveAttack;
         int damage = DamageCalculator.CalculateWithReaction(
             effectiveAttack, target.EffectiveDefense, reaction);
-        // 被动伤害介入（B 阶段）：基础段 = max(1, 基础伤害 - 受击方物理减伤被动)。
-        // 附加伤害已独立成段（基础段扣血结算后按类型分三份另行结算，见 ApplyExtraDamageSegments）
-        damage = Mathf.Max(1, damage - GetTotalDamageReduction(target, DamageKind.Physical));
-        // 易伤结算（莫娜大招·星异）：减伤之后、首伤=1 之前，伤害 ×(1+percent%)
-        ApplyVulnerability(target, ref damage);
 
-        // 伤害介入（C1，严格顺序）：首伤=1（中娅悖论）→ 死亡之蔑拆分（立即 + 延迟）
-        ApplyFirstDamageProtection(target, ref damage);
-        ApplyDeathDelay(target, ref damage);
-        target.TakeDamage(damage);
-        // 死亡介入（C1）：免死（中娅悖论）——将死则回 1 HP（后续 IsDead 判定/击退/销毁自然使用新状态）
-        TryDefyDeath(target);
+        // 护盾拦截（基座）：拦在减伤之前（拦截原始伤害）。被拦截时跳过整条数值链
+        // （减伤/易伤/首伤=1/延迟拆分/扣血/免死/受伤通知/伤害跳字）；
+        // 元素附着/反应/冻结/感电/超载爆炸/击退/能量/OnAttacked/OnDamageDealt 照常（护盾只拦伤害数值）——
+        // 金币是例外：拦截时攻击方/受击方都不给金币（免伤 = 无伤害收益，见下方金币段）
+        bool absorbed = TryAbsorbByShield(target, damage, DamageKind.Physical, attackerElem);
+        // 拦截标志：供 OnDamageDealt 消费者中的「伤害收益类」被动（吸血）读取——被拦截则不吸血。
+        // 二段/减防/强化/领域/溅射等「命中类」消费者不读此标志，照常触发
+        target.LastHitAbsorbedByShield = absorbed;
+
+        if (!absorbed)
+        {
+            // 被动伤害介入（B 阶段）：基础段 = max(1, 基础伤害 - 受击方物理减伤被动)。
+            // 附加伤害已独立成段（基础段扣血结算后按类型分三份另行结算，见 ApplyExtraDamageSegments）
+            damage = Mathf.Max(1, damage - GetTotalDamageReduction(target, DamageKind.Physical));
+            // 易伤结算（莫娜大招·星异）：减伤之后、首伤=1 之前，伤害 ×(1+percent%)
+            ApplyVulnerability(target, ref damage);
+
+            // 伤害介入（C1，严格顺序）：首伤=1（中娅悖论）→ 死亡之蔑拆分（立即 + 延迟）
+            ApplyFirstDamageProtection(target, ref damage);
+            ApplyDeathDelay(target, ref damage);
+            target.TakeDamage(damage);
+            // 死亡介入（C1）：免死（中娅悖论）——将死则回 1 HP（后续 IsDead 判定/击退/销毁自然使用新状态）
+            TryDefyDeath(target);
+
+            // 被动状态维护：未受伤害计数归零 + 记录上次受伤害来源（石像鬼板甲等 2.2 用）
+            // （护盾免伤 = 没有减血：不打断「连续未受伤」计时、不更新伤害来源）
+            target.TurnsSinceDamaged = 0;
+            target.LastDamageSource = attacker;
+
+            // 地下交易·累计伤害统计（三期，只读观察）：护盾未拦截的实际伤害，按攻击方累计
+            UndergroundTradeManager.Instance?.RecordDamage(attacker.Owner, damage, damageSource);
+        }
         attacker.HasAttackedThisTurn = true;
 
-        // 被动状态维护：未受伤害计数归零 + 记录上次受伤害来源（石像鬼板甲等 2.2 用）
-        target.TurnsSinceDamaged = 0;
-        target.LastDamageSource = attacker;
-
-        // 被动事件通知（纯通知，不改主流程数值）：被攻击（无论是否减血）→ 造成伤害（含目标）→ 受到伤害
+        // 被动事件通知（纯通知，不改主流程数值）：被攻击（无论是否减血）→ 造成伤害（含目标）→ 受到伤害（仅实际减血）
         // 普攻路径伤害类型 = Physical（受防御减伤、触发反甲）
         foreach (var passive in target.GetAllPassives()) passive.OnAttacked(target, attacker, damageSource);
         foreach (var passive in attacker.GetAllPassives()) passive.OnDamageDealt(attacker, damage, target);
-        foreach (var passive in target.GetAllPassives()) passive.OnDamageReceived(target, damage, damageSource, DamageKind.Physical);
+        if (!absorbed)
+            foreach (var passive in target.GetAllPassives()) passive.OnDamageReceived(target, damage, damageSource, DamageKind.Physical);
 
         // ---- 浮动跳字（View 层，不参与逻辑；池/View 未就绪时静默跳过）----
         // 在副作用（元素附着/冻结/击退）前取位置，确保用击退前的原始坐标
         if (FloatingTextPool.Instance != null && target.View != null)
         {
             Vector3 pos = target.View.transform.position;
-            Color elementColor = ElementColorMapper.GetElementDamageColor(attackerElem);
+            Color elementColor = ElementColorMapper.GetDamageColor(attackerElem, DamageKind.Physical);
             bool isReaction = reaction.Type != ReactionType.None;
             // 普攻固定物理形态（纯色块）；伤害数字颜色不受「是否反应」影响（反应提示由下方独立跳字承担）
-            FloatingTextPool.Instance.ShowDamage(damage, pos, elementColor, DamageKind.Physical);
+            // （护盾格挡时跳过伤害数字——「格挡」提示由 TryAbsorbByShield 显示）
+            if (!absorbed)
+                FloatingTextPool.Instance.ShowDamage(damage, pos, elementColor, DamageKind.Physical);
             if (isReaction)
             {
                 // 智能格式：倍率≠1 显 ×倍率；倍率=1 且有额外伤害显 +额外；否则仅反应名
@@ -266,12 +290,18 @@ public class PieceManager : MonoBehaviour
         // 元素附着与消耗：攻击方有元素才触发交互（普攻触发量=1 + 元素之力加成）
         if (attackerElem != ElementType.None)
         {
-            int triggerGauge = 1 + GetExtraElementGauge(attacker, attackerElem);
-            var (resultElem, resultGauge) = ElementReactionTable.ResolveElementInteraction(
-                target.AffixedElement, target.AffixedElementGauge,
-                attackerElem, triggerGauge);
-            target.AffixedElement = resultElem;
-            target.AffixedElementGauge = resultGauge;
+            // 护盾染色封印（元素城邦二期）：已染色护盾封印同元素附着 → 跳过附着写入（反应已照常结算）
+            if (!target.BlocksElementAttachment(attackerElem))
+            {
+                int triggerGauge = 1 + GetExtraElementGauge(attacker, attackerElem);
+                var (resultElem, resultGauge) = ElementReactionTable.ResolveElementInteraction(
+                    target.AffixedElement, target.AffixedElementGauge,
+                    attackerElem, triggerGauge);
+                target.AffixedElement = resultElem;
+                target.AffixedElementGauge = resultGauge;
+                // 染色：附着成功（结果非 None）→ 未染色护盾变为对应元素盾
+                target.TryDyeShieldElement(resultElem);
+            }
         }
 
         // 冻结反应：设置冻结回合（IsFrozen 由 FreezeTurnsRemaining 派生）
@@ -303,8 +333,14 @@ public class PieceManager : MonoBehaviour
                 TeleportPiece(target, knockbackTo.Value);
         }
 
-        // 金币系统：造成 / 受到伤害实时到账（skipGold=true 时跳过，如溅射想用自定义金币比例）
-        if (!skipGold)
+        // 季风之城·暴雪（二期）：攻击后被攻击棋子被击退 N 格（null 安全纯通知；生效判断内聚在管理器，
+        // 复用超载击退链路，遇阻/边界由解析器自然处理）
+        if (!target.IsDead)
+            MonsoonManager.Instance?.OnAttackLanded(attacker, target);
+
+        // 金币系统：造成 / 受到伤害实时到账（skipGold=true 时跳过，如溅射想用自定义金币比例；
+        // absorbed=true 跳过——护盾免伤 = 攻击方/受击方都无金币收益，非拦截场景数值不变）
+        if (!skipGold && !absorbed)
         {
             GoldManager.Instance?.OnDamageDealt(attacker, damage);
             GoldManager.Instance?.OnDamageReceived(target, damage);
@@ -342,23 +378,36 @@ public class PieceManager : MonoBehaviour
     /// <summary>统一伤害应用入口（2.2 伤害通知统一）：
     /// TakeDamage + 状态维护（未受伤害计数归零 / 记录伤害来源）+ 触发受击方全部被动 OnAttacked / OnDamageReceived。
     /// 只触发"受伤害"通知——不触发 OnDamageDealt（吸血保持只在 AttackPiece 生效）、不触发元素反应/金币/能量。
-    /// 目标已死直接返回；damage≤0 仍触发 OnAttacked（被攻击通知，无论是否减血）但不触发 OnDamageReceived（不减血不通知/不打断计时）。
+    /// 返回值：true = 实际造成伤害（未被护盾拦截）；false = 未造成伤害（目标无效 / damage≤0 / 被护盾拦截）。
+    /// 调用方（各效果类）据此决定是否给金币——护盾免伤 = 攻击方与受击方都无金币收益。
+    /// 目标已死直接返回 false；damage≤0 仍触发 OnAttacked（被攻击通知，无论是否减血）但不触发 OnDamageReceived（不减血不通知/不打断计时）。
     /// damageType 标记伤害来源类型（DamageSource：反甲等被动据此筛选/防递归）；
     /// damageKind 标记伤害类型三分类（DamageKind：A 阶段仅打标签，B 阶段接入减伤/反甲筛选）。
     /// element 仅影响跳字颜色（View 层）：带元素伤害（element != None）跳元素色（火红/水蓝/雷紫/冰白），
     /// 无元素伤害（反伤/DoT/超载爆炸/非元素溅射，不传保持 None）跳伤害类型色（物理白/魔法紫/真实金）——不影响任何结算逻辑。
     /// 普攻路径（AttackPiece）不走此方法——主流程保持内联的同款通知。</summary>
-    public void ApplyIncomingDamage(PieceModel target, int damage, PieceModel source,
+    public bool ApplyIncomingDamage(PieceModel target, int damage, PieceModel source,
         DamageSource damageType = DamageSource.Attack, DamageKind damageKind = DamageKind.Physical,
         ElementType element = ElementType.None)
     {
-        if (target == null || target.IsDead) return;
+        if (target == null || target.IsDead) return false;
 
         // 被攻击通知：无论是否减血都触发（与 OnDamageReceived 的"仅减血"语义区分；石像鬼板甲用）
         foreach (var passive in target.GetAllPassives())
             passive.OnAttacked(target, source, damageType);
 
-        if (damage <= 0) return;
+        if (damage <= 0) return false;
+
+        // 护盾拦截（基座）：拦在减伤之前（拦截原始伤害）。被拦截 = 本次伤害完全免掉：
+        // 跳过数值链（减伤/易伤/首伤=1/延迟拆分/扣血/免死）+ 受伤通知 + 打断计时 + 伤害跳字
+        //（「格挡/免疫」提示由 TryAbsorbByShield 显示）。大招路径（Ultimate 来源）仍广播命中——
+        // 与普攻路径拦截时协同照常的口径一致（攻击命中了护盾，雷电将军协同补刀）
+        if (TryAbsorbByShield(target, damage, damageKind, element))
+        {
+            if (damageType == DamageSource.Ultimate)
+                NotifyAllyAttackHit(source, target, damage, damageType);
+            return false;
+        }
 
         // 减伤介入（B 阶段，与普攻路径同序：先于首伤=1/延迟拆分）：统一入口伤害也按 damageKind 筛选减伤
         //（魔法/真实不受防御减伤，但受减伤被动——filter 默认 All 全类型；下限 1 与普攻路径一致）
@@ -374,18 +423,21 @@ public class PieceManager : MonoBehaviour
         TryDefyDeath(target);
 
         // 跳字（View 层反馈，不参与逻辑；池/View 未就绪静默跳过；用击退前的原坐标）
-        // 颜色来源：带元素伤害（element != None，调用方传入）→ 元素色（与普攻路径 GetElementDamageColor 同源）；
-        // 无元素伤害（反伤/DoT/超载爆炸/非元素溅射，默认 None）→ 伤害类型色（物理白/魔法紫/真实金，保持现状）。
+        // 颜色统一入口 GetDamageColor：带元素伤害（element != None 且元素城邦生效）→ 元素色；
+        // 无元素伤害（或非元素城邦，元素维度视为无）→ 伤害类型色（物理白/魔法紫/真实金）。
         // 样式按 damageKind 自动分流（物理纯色/魔法渐变/真实描边）
         if (FloatingTextPool.Instance != null && target.View != null)
         {
-            Color floatColor = element != ElementType.None
-                ? ElementColorMapper.GetElementDamageColor(element)
-                : ElementColorMapper.GetDamageKindColor(damageKind);
+            Color floatColor = ElementColorMapper.GetDamageColor(element, damageKind);
             FloatingTextPool.Instance.ShowDamage(damage, target.View.transform.position, floatColor, damageKind);
         }
         target.TurnsSinceDamaged = 0;
         target.LastDamageSource = source;
+
+        // 地下交易·累计伤害统计（三期，只读观察）：护盾未拦截的实际伤害，按攻击方累计
+        //（Dot/Reflect 由 RecordDamage 内部过滤不计；DoT 的 source 可能为 null，防御性跳过）
+        if (source != null)
+            UndergroundTradeManager.Instance?.RecordDamage(source.Owner, damage, damageType);
 
         foreach (var passive in target.GetAllPassives())
             passive.OnDamageReceived(target, damage, damageType, damageKind);
@@ -394,6 +446,7 @@ public class PieceManager : MonoBehaviour
         // 如凛冬风暴每命中一次广播一次；Splash/Dot/Reflect 来源不广播，保持"攻击"语义）
         if (damageType == DamageSource.Ultimate)
             NotifyAllyAttackHit(source, target, damage, damageType);
+        return true;
     }
 
     /// <summary>己方攻击命中广播：通知攻击方阵营全体存活棋子的全部被动 OnAllyAttackHit。
@@ -438,11 +491,18 @@ public class PieceManager : MonoBehaviour
     {
         if (target == null || triggerElement == ElementType.None) return;
 
-        // 元素附着与消耗（gauge：被动=1 同普攻口径；大招=2 同大招募发量）
-        var (resultElem, resultGauge) = ElementReactionTable.ResolveElementInteraction(
-            target.AffixedElement, target.AffixedElementGauge, triggerElement, triggerGauge);
-        target.AffixedElement = resultElem;
-        target.AffixedElementGauge = resultGauge;
+        // 护盾染色封印（元素城邦二期）：已染色护盾封印同元素附着 → 只跳过附着写入；
+        // 下方反应副作用（超导减防/感电DoT/冻结）照常结算——封印拦「附着」不拦「反应」
+        if (!target.BlocksElementAttachment(triggerElement))
+        {
+            // 元素附着与消耗（gauge：被动=1 同普攻口径；大招=2 同大招募发量）
+            var (resultElem, resultGauge) = ElementReactionTable.ResolveElementInteraction(
+                target.AffixedElement, target.AffixedElementGauge, triggerElement, triggerGauge);
+            target.AffixedElement = resultElem;
+            target.AffixedElementGauge = resultGauge;
+            // 染色：附着成功（结果非 None）→ 未染色护盾变为对应元素盾
+            target.TryDyeShieldElement(resultElem);
+        }
 
         // ---- 反应状态副作用（与 AttackPiece 同字段同口径）----
         if (reaction.DefenseReduction > 0)
@@ -478,6 +538,46 @@ public class PieceManager : MonoBehaviour
         foreach (var passive in target.GetAllPassives())
             if (passive is DeathDancePassive ddp)
                 ddp.SplitIncomingDamage(ref damage, target.EffectiveDefense);
+    }
+
+    /// <summary>护盾拦截（基座）：伤害命中护盾时按规则判定，返回 true = 本次伤害被完全免掉
+    /// （调用方跳过「减伤→易伤→首伤=1→延迟拆分→扣血→免死→受伤通知」整条数值链；
+    /// 元素附着/反应/冻结/感电/减防/金币/能量等由调用方照常处理，护盾不碰）。
+    /// 拦截规则：
+    ///   无盾 / damage≤0 → false（不拦截，照常结算）
+    ///   真实（True）伤害 → 免掉 + 扣 1 层（无视元素免疫）
+    ///   元素盾 · 伤害元素 == 盾元素 → 免疫（免掉且不扣层）
+    ///   其余（普通盾 / 元素盾但伤害元素不同或无元素）→ 免掉 + 扣 1 层
+    /// 扣到 0 层护盾消失（清元素标签）。「格挡 / 免疫」提示跳字（View 层，池未就绪静默跳过）。
+    /// public static：DeathDancePassive 延迟伤害等非 PieceManager 内部路径也需调用。</summary>
+    public static bool TryAbsorbByShield(PieceModel target, int damage, DamageKind kind, ElementType element)
+    {
+        if (target == null || target.ShieldStacks <= 0 || damage <= 0) return false;
+
+        // 元素免疫：元素盾 + 同元素伤害 + 非 True → 免掉且不扣层
+        if (kind != DamageKind.True
+            && target.ShieldElement != ElementType.None
+            && element == target.ShieldElement)
+        {
+            Debug.Log($"[PieceManager] {target.Data.displayName} 的{element}元素盾免疫伤害（盾 {target.ShieldStacks} 层，不扣层）");
+            if (FloatingTextPool.Instance != null && target.View != null)
+                FloatingTextPool.Instance.Get()?.Show("免疫",
+                    target.View.transform.position + Vector3.up * 1.5f, FloatStyles.Armor());
+            return true;
+        }
+
+        // 普通格挡：免掉 + 扣 1 层（True 伤害无视元素免疫也走这里）。
+        // 扣层走 SetShield（触发 OnShieldChanged UI 事件；层数归 0 自动清元素标签）
+        string elemMark = target.ShieldElement != ElementType.None ? $"{target.ShieldElement}" : "";
+        int stacksAfter = target.ShieldStacks - 1;
+        bool shattered = stacksAfter <= 0;
+        target.SetShield(stacksAfter, target.ShieldElement);
+        Debug.Log($"[PieceManager] {target.Data.displayName} 的{elemMark}护盾格挡 {damage} 伤害" +
+                  (shattered ? "，护盾破碎" : $"（剩 {target.ShieldStacks} 层）"));
+        if (FloatingTextPool.Instance != null && target.View != null)
+            FloatingTextPool.Instance.Get()?.Show(shattered ? "盾碎" : "格挡",
+                target.View.transform.position + Vector3.up * 1.5f, FloatStyles.Armor());
+        return true;
     }
 
     /// <summary>死亡介入（C1）：遍历 target 全部被动的免死（中娅悖论），已死且冷却完毕时回 1 HP。
@@ -570,6 +670,10 @@ public class PieceManager : MonoBehaviour
             int extra = GetExtraDamage(attacker, kind);
             if (extra <= 0) continue;
 
+            // 护盾拦截（基座）：拦在防御/减伤之前；附加段不带元素（None）→ 元素盾也按「元素不同」扣层，
+            // True 附加无视元素免疫仍扣层。被拦截时跳过本段全部结算（扣血/免死/通知/跳字）
+            if (TryAbsorbByShield(target, extra, kind, ElementType.None)) continue;
+
             int amount = kind == DamageKind.Physical
                 ? Mathf.Max(1, extra - target.EffectiveDefense)   // 物理附加：先吃防御减伤（下限 1）
                 : extra;                                          // 魔法/真实附加：不吃防御减伤
@@ -579,6 +683,10 @@ public class PieceManager : MonoBehaviour
 
             target.TakeDamage(amount);
             TryDefyDeath(target);
+
+            // 地下交易·累计伤害统计（三期，只读观察）：附加段实际伤害（护盾未拦截），固定 Attack 来源
+            UndergroundTradeManager.Instance?.RecordDamage(attacker.Owner, amount, DamageSource.Attack);
+
             foreach (var passive in target.GetAllPassives())
                 passive.OnDamageReceived(target, amount, DamageSource.Attack, kind);
             // 跳字（按伤害类型取色+选形态；池/View 未就绪静默跳过）

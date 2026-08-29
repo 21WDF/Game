@@ -4,17 +4,22 @@ using UnityEngine;
 
 /// <summary>
 /// 棋盘道具控制器（GridItem 模块的 Controller）—— 单例 MonoBehaviour。
-/// 职责：管理商店道具列表、购买即用流程（扣金币→瞄准→命中执行/取消退还）、
+/// 职责：管理商店道具列表、道具库存（按玩家分组的持有列表）、
+///       购买进背包流程（背包系统一期：扣金币→入背包，不再购买即用）、
+///       从背包使用流程（移出背包→瞄准→命中消耗+扣AP/取消退回背包）、
 ///       工厂实例化 IGridItemEffect、瞄准模式视觉（扩展石幽灵格 / 删除石红色高亮 / 传送石蓝色落点）。
 /// 挂载在场景中的 GridItemManager GameObject 上（对标 EquipmentManager）。
 ///
 /// 设计要点：
-///   1) availableGridItems 由 Inspector 拖入。
-///   2) 购买即用（无库存）：BuyAndUse 扣金币→进入瞄准模式；命中目标扣 AP + 执行效果；取消/无目标退还金币（不扣 AP）。
+///   1) availableGridItems 由 Inspector 拖入（商店固定资产，不随购买减库存；玩家的持有在 _inventories）。
+///   2) 道具库存（一期）：每件道具独立占一格、不堆叠、不持久化；
+///      BuyToInventory 扣金币（透支版+信誉涨价）→ 入背包；
+///      UseFromInventory 移出背包 → 瞄准（复用现有瞄准/命中/执行链路）→ 命中扣 AP + 消耗；
+///      取消（点非目标/无合法目标）→ 道具退回背包，不扣 AP（等价旧「取消退金币」语义）。
 ///   3) 瞄准模式与 BattleController 集成：BattleController.HandleTileClick 最前面检查 IsTargeting 并委托；
 ///      道具瞄准进行中忽略 U 键（HandleUltimate 屏蔽）。
 ///   4) AP 在命中时扣减（取消不扣 AP）。
-///   5) requiresSelectedPiece 道具（传送石）：BuyAndUse 校验 SelectedPiece，UI_ShopPanel 也据此置灰按钮（双保险）。
+///   5) requiresSelectedPiece 道具（传送石）：UseFromInventory 校验 SelectedPiece，侧栏「使用」按钮也据此置灰（双保险）。
 ///   6) 幽灵格正式化时机：玩家点中幽灵格→Execute 调 AddTile（Model.AddCoord + View.CreateTile 返回已存在实例）
 ///      →坐标入 Model 正式化；ClearTargetingVisuals 清理其余幽灵格时，DestroyGhostTile 保护已正式化的跳过。
 /// </summary>
@@ -30,13 +35,23 @@ public class GridItemManager : MonoBehaviour
     private GridItemData _activeData;
     private IGridItemEffect _activeEffect;
     private PlayerSide _activeUser;
-    private int _activeCost;          // 已扣金币（用于退还）
+    private bool _activeFromInventory;  // 当前瞄准道具来源背包（取消退回背包；命中已消耗）
     private int _activeApCost;        // 命中时扣减的 AP
     private readonly HashSet<HexCoord> _ghostCoords = new();   // 扩展石幽灵格坐标
     private readonly HashSet<HexCoord> _targetCoords = new();  // 删除石/传送石高亮目标坐标
 
+    // ---- 道具库存（背包系统一期：按玩家分组，每件独立占一格）----
+    private readonly Dictionary<PlayerSide, List<GridItemData>> _inventories = new()
+    {
+        [PlayerSide.P1] = new List<GridItemData>(),
+        [PlayerSide.P2] = new List<GridItemData>()
+    };
+
+    /// <summary>道具持有变化（进背包/移出使用/取消退回）时触发（侧栏刷新）</summary>
+    public event Action<PlayerSide> OnInventoryChanged;
+
     // 渲染参数（幽灵格颜色）收拢到 GameConfig，与 BattleView 移动范围同色
-    private GameConfig _config;
+    private GameConfig _config;   // 已有缓存（容量校验同用；缺失时兜底 5——与背包侧栏口径一致）
 
     /// <summary>是否处于道具瞄准模式（BattleController 据此委托点击）</summary>
     public bool IsTargeting => _targeting;
@@ -56,21 +71,81 @@ public class GridItemManager : MonoBehaviour
     }
 
     // ==========================================
-    //  商店查询
+    //  商店查询与道具库存
     // ==========================================
     public GridItemData[] GetShopGridItems() => availableGridItems;
 
+    /// <summary>查询某方当前持有的道具列表（侧栏展示用；每件独立占一格，不堆叠）</summary>
+    public List<GridItemData> GetInventory(PlayerSide side)
+        => _inventories.TryGetValue(side, out var list) ? list : null;
+
+    /// <summary>道具入背包（唯一入口：购买/取消退回都走这里，统一触发 OnInventoryChanged）</summary>
+    private void AddToInventory(PlayerSide side, GridItemData data)
+    {
+        if (data == null || !_inventories.TryGetValue(side, out var list)) return;
+        list.Add(data);
+        OnInventoryChanged?.Invoke(side);
+    }
+
     // ==========================================
-    //  购买即用
+    //  购买进背包（背包系统一期：扣金币 → 入背包，不进入瞄准）
     // ==========================================
-    /// <summary>购买并立即进入瞄准模式。
-    /// 流程：取消已有瞄准 → 前置校验（选中棋子）→ 扣金币 → 创建效果 → AP 预校验 → 进入瞄准 → 生成视觉。
-    /// 无合法目标或前置不满足时退还金币并返回 false。</summary>
-    public bool BuyAndUse(PlayerSide side, GridItemData data)
+    /// <summary>道具背包容量查询（复用 _config 缓存；缺失时兜底 5——与背包侧栏兜底口径一致）</summary>
+    private int GetItemCapacity()
+    {
+        return _config != null ? _config.backpackItemCapacity : 5;
+    }
+
+    /// <summary>无偿获得道具（幸运方块/拍卖交付等；对标 EquipmentManager.GrantEquipment）。
+    /// 入背包触发 OnInventoryChanged；不扣金币、不受容量拦截（无偿入口）</summary>
+    public void GrantItem(PlayerSide side, GridItemData data)
+    {
+        if (data == null) return;
+        AddToInventory(side, data);
+    }
+
+    /// <summary>商店购买道具：道具背包容量已满 / 售价含信誉涨价（贸易之城·二期）→ 透支扣款 → 入背包。
+    /// 容量 = GameConfig.backpackItemCapacity（与背包侧栏列容量同源）。
+    /// 商店列表是固定资产不随购买减库存；使用走 UseFromInventory（侧栏「使用」按钮）</summary>
+    public bool BuyToInventory(PlayerSide side, GridItemData data)
     {
         if (data == null) return false;
 
-        // 已在瞄准模式：先取消当前（退还金币），再开始新的
+        // 容量校验（问题3：道具列已满拒绝购买，不扣金币不入背包）
+        int capacity = GetItemCapacity();
+        if (GetInventory(side).Count >= capacity)
+        {
+            Debug.Log($"[GridItemManager] {side} 道具背包已满（{capacity}），无法购买 {data.displayName}");
+            return false;
+        }
+
+        int price = TradeCityManager.Instance != null
+            ? TradeCityManager.Instance.GetAdjustedPrice(side, data.price)
+            : data.price;
+
+        // 扣金币（透支版，贸易之城·一期：金币充足时行为与原 TrySpendGold 一致）
+        if (GoldManager.Instance == null || !GoldManager.Instance.TrySpendGoldWithOverdraft(side, price))
+        {
+            Debug.Log($"[GridItemManager] {side} 金币不足（含透支额度），无法购买 {data.displayName}");
+            return false;
+        }
+
+        AddToInventory(side, data);
+        Debug.Log($"[GridItemManager] {side} 购买 {data.displayName}（花费 {price}），进入背包");
+        return true;
+    }
+
+    // ==========================================
+    //  从背包使用（移出背包 → 瞄准 → 命中消耗 / 取消退回）
+    // ==========================================
+    /// <summary>使用背包道具：前置校验 → 从背包移除 → 进入瞄准模式（复用现有瞄准/命中/执行链路）。
+    /// 命中：执行效果 + 扣 AP（道具已消耗）；取消/无合法目标：道具退回背包，不扣 AP。
+    /// 前置校验失败（未选中己方棋子/效果类名未知/AP 不足）时道具不动、返回 false</summary>
+    public bool UseFromInventory(PlayerSide side, GridItemData data)
+    {
+        if (data == null) return false;
+
+        // 已在瞄准模式：先取消当前（退回背包），再开始新的
         if (_targeting) CancelTargeting();
 
         // 前置校验：需要选中棋子的道具（传送石）
@@ -84,36 +159,31 @@ public class GridItemManager : MonoBehaviour
             }
         }
 
-        // 扣金币
-        if (GoldManager.Instance == null || !GoldManager.Instance.TrySpendGold(side, data.price))
-        {
-            Debug.Log($"[GridItemManager] {side} 金币不足，无法购买 {data.displayName}");
-            return false;
-        }
-
         // 创建效果
         var effect = CreateEffect(data);
         if (effect == null)
         {
-            GoldManager.Instance.AddGold(side, data.price); // 退还
-            Debug.LogWarning($"[GridItemManager] 未知效果类名: {data.effectClassName}，已退还金币");
+            Debug.LogWarning($"[GridItemManager] 未知效果类名: {data.effectClassName}");
             return false;
         }
 
         // AP 预校验（命中时才扣，此处仅检查是否足够）
         if (APManager.Instance == null || !APManager.Instance.HasAP(side, data.apCost))
         {
-            GoldManager.Instance.AddGold(side, data.price); // 退还
-            Debug.Log($"[GridItemManager] {side} AP 不足，无法使用 {data.displayName}，已退还金币");
+            Debug.Log($"[GridItemManager] {side} AP 不足，无法使用 {data.displayName}");
             return false;
         }
+
+        // 从背包移除（命中即消耗；取消由 CancelTargeting 退回）
+        if (!_inventories.TryGetValue(side, out var list) || !list.Remove(data)) return false;
+        OnInventoryChanged?.Invoke(side);
 
         // 进入瞄准模式
         _targeting = true;
         _activeData = data;
         _activeEffect = effect;
         _activeUser = side;
-        _activeCost = data.price;
+        _activeFromInventory = true;
         _activeApCost = data.apCost;
         _ghostCoords.Clear();
         _targetCoords.Clear();
@@ -121,15 +191,15 @@ public class GridItemManager : MonoBehaviour
         // 生成瞄准视觉
         BuildTargetingVisuals(effect, side);
 
-        // 无合法目标 → 立即取消并退还
+        // 无合法目标 → 立即取消（退回背包）
         if (_ghostCoords.Count == 0 && _targetCoords.Count == 0)
         {
-            Debug.Log($"[GridItemManager] {data.displayName} 无合法目标，已退还金币");
+            Debug.Log($"[GridItemManager] {data.displayName} 无合法目标，退回背包");
             CancelTargeting();
             return false;
         }
 
-        Debug.Log($"[GridItemManager] {side} 购买 {data.displayName}（花费 {data.price}），进入瞄准模式");
+        Debug.Log($"[GridItemManager] {side} 使用背包道具 {data.displayName}，进入瞄准模式");
         return true;
     }
 
@@ -209,12 +279,13 @@ public class GridItemManager : MonoBehaviour
             return;
         }
 
-        // 点击非目标 → 取消（退还金币，不扣 AP）
-        Debug.Log($"[GridItemManager] 取消 {_activeData?.displayName} 使用，退还金币");
+        // 点击非目标 → 取消（退回背包，不扣 AP）
+        Debug.Log($"[GridItemManager] 取消 {_activeData?.displayName} 使用，退回背包");
         CancelTargeting();
     }
 
-    /// <summary>命中目标：执行效果（先于清理，使被点幽灵格正式化受保护）+ 扣 AP + 清理 + 恢复选中高亮</summary>
+    /// <summary>命中目标：执行效果（先于清理，使被点幽灵格正式化受保护）+ 扣 AP + 清理 + 恢复选中高亮。
+    /// 背包道具在进入瞄准时已从背包移除 → 命中即消耗，无需再动</summary>
     private void ExecuteHit(HexCoord coord)
     {
         var effect = _activeEffect;
@@ -240,7 +311,7 @@ public class GridItemManager : MonoBehaviour
         _targeting = false;
         _activeData = null;
         _activeEffect = null;
-        _activeCost = 0;
+        _activeFromInventory = false;
         _ghostCoords.Clear();
         _targetCoords.Clear();
 
@@ -248,21 +319,21 @@ public class GridItemManager : MonoBehaviour
         BattleController.Instance?.RefreshSelectionHighlights();
     }
 
-    /// <summary>取消瞄准：退还金币 + 清理视觉 + 恢复选中高亮（不扣 AP）</summary>
+    /// <summary>取消瞄准：背包道具退回背包 + 清理视觉 + 恢复选中高亮（不扣 AP）</summary>
     public void CancelTargeting()
     {
         if (!_targeting) return;
 
-        // 退还金币
-        if (_activeCost > 0 && GoldManager.Instance != null)
-            GoldManager.Instance.AddGold(_activeUser, _activeCost);
+        // 退还：从背包使用的道具退回背包（不消耗）；旧「扣金币购买」来源已随购买即用流程移除
+        if (_activeFromInventory && _activeData != null)
+            AddToInventory(_activeUser, _activeData);
 
         ClearTargetingVisuals();
 
         _targeting = false;
         _activeData = null;
         _activeEffect = null;
-        _activeCost = 0;
+        _activeFromInventory = false;
         _ghostCoords.Clear();
         _targetCoords.Clear();
 
