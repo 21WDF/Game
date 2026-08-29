@@ -1,0 +1,104 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8db14da7ccadd64694d2d02f6d8fffd, type: 3}
+  m_Name: MonsoonConfig
+  m_EditorClassIdentifier: Assembly-CSharp::MonsoonConfig
+  seasons:
+  - slotName: "\u6625"
+    effectType: 1
+    value: 1
+  - slotName: "\u590F"
+    effectType: 2
+    value: 2
+  - slotName: "\u79CB"
+    effectType: 3
+    value: 10
+  - slotName: "\u51AC"
+    effectType: 4
+    value: 1
+  daySlot:
+    slotName: "\u663C"
+    effectType: 5
+    value: 1
+  nightSlot:
+    slotName: "\u591C"
+    effectType: 5
+    value: -1
+  minMoveRange: 1
+  roundsPerSeason: 6
+  dayRoundsPerSeason: 3
+  climates:
+  - climateName: 
+    probability: 0
+    restrictedSeasonIndex: 0
+    effectKind: 0
+    exclusive: 0
+  climateDurationMinRounds: 1
+  climateDurationMaxRounds: 3
+  rainAttackRangePenalty: 1
+  blizzardKnockbackDistance: 1
+  hurricaneDropChancePerRound: 0.5
+  hurricaneDropCount: 2
+  lootBoxTiers:
+  - tierName: "\u8D85\u9AD8"
+    color: {r: 1, g: 0.25, b: 0.25, a: 0.85}
+    weight: 0.05
+    includeNormalEquipment: 1
+    equipmentTier: 2
+    minCityPrice: 50
+    maxCityPrice: 9999
+    goldMin: 100
+    goldMax: 150
+  - tierName: "\u9AD8"
+    color: {r: 1, g: 0.85, b: 0.2, a: 0.85}
+    weight: 0.15
+    includeNormalEquipment: 1
+    equipmentTier: 1
+    minCityPrice: 50
+    maxCityPrice: 9999
+    goldMin: 20
+    goldMax: 60
+  - tierName: "\u4E2D"
+    color: {r: 0.25, g: 0.55, b: 1, a: 0.85}
+    weight: 0.3
+    includeNormalEquipment: 1
+    equipmentTier: 0
+    minCityPrice: 0
+    maxCityPrice: 49
+    goldMin: 10
+    goldMax: 20
+  - tierName: "\u4F4E"
+    color: {r: 0.6, g: 0.6, b: 0.6, a: 0.85}
+    weight: 0.5
+    includeNormalEquipment: 0
+    equipmentTier: 0
+    minCityPrice: 0
+    maxCityPrice: -1
+    goldMin: 1
+    goldMax: 6
+  lightningStrikeMinCount: 2
+  lightningStrikeMaxCount: 4
+  lightningStrikeDamage: 20
+  lightningResidueInitialPower: 8
+  lightningResidueDecayPerRound: 2
+  lightningPermanentBonusChance: 0.4
+  permanentBonusPool:
+  - type: 0
+    value: 2
+  - type: 1
+    value: 2
+  - type: 2
+    value: 2
+  - type: 3
+    value: 1
+  - type: 4
+    value: 1

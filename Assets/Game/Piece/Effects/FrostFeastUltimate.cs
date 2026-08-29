@@ -68,11 +68,15 @@ public class FrostFeastUltimate : IUltimateEffect
                     damage = Mathf.Max(1, attackValue - occupant.EffectiveDefense);
                 }
 
-                PieceManager.Instance.ApplyIncomingDamage(occupant, damage, caster,
+                // 返回 false = 被护盾拦截 → 不给金币；元素附着/反应照常
+                bool landed = PieceManager.Instance.ApplyIncomingDamage(occupant, damage, caster,
                     DamageSource.Ultimate, DamageKind.Physical, element);
                 PieceManager.Instance.ApplyElementInteraction(occupant, caster, element, 2, reaction);
-                GoldManager.Instance?.OnDamageDealt(caster, damage);
-                GoldManager.Instance?.OnDamageReceived(occupant, damage);
+                if (landed)
+                {
+                    GoldManager.Instance?.OnDamageDealt(caster, damage);
+                    GoldManager.Instance?.OnDamageReceived(occupant, damage);
+                }
 
                 if (occupant.IsDead)
                     PieceManager.Instance.DestroyPiece(occupant, caster);

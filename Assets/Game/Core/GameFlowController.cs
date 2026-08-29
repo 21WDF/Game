@@ -16,12 +16,18 @@ public class GameFlowController : MonoBehaviour
 {
     public static GameFlowController Instance { get; private set; }
 
-    public enum Phase { None, P1Select, P1Deploy, P2Select, P2Deploy, Playing }
+    public enum Phase { None, CityStateSelect, P1Select, P1Deploy, P2Select, P2Deploy, Playing }
     public Phase CurrentPhase { get; private set; } = Phase.None;
 
     [Header("UI 面板引用（Inspector 拖入）")]
+    [SerializeField] private UI_CityStateSelection cityStateSelectionPanel;
     [SerializeField] private UI_UnitSelection unitSelectionPanel;
     [SerializeField] private UI_Deployment deploymentPanel;
+
+    // 城邦选择提交进度（本地驱动层状态：仅用于判断「双方是否都已提交」以驱动 UI 切换，
+    // 结算本身由 CityStateManager 的提交管线完成，不依赖顺序）
+    private bool _cityP1Submitted;
+    private bool _cityP2Submitted;
 
     // 当前部署方的选中棋子 + 已放置标记（按索引，支持同类型重复选择）
     private readonly List<PieceData> _currentSelection = new();
@@ -52,8 +58,57 @@ public class GameFlowController : MonoBehaviour
 
     private void BeginPreMatch()
     {
+        // 城邦选择阶段：真实交互 UI（P1 先选、提交后切 P2 = 本地热座驱动方式；
+        // 选择/提交/结算逻辑传输无关，联机时换成各自屏幕 + 网络同步即可复用）
+        if (CityStateManager.Instance != null && cityStateSelectionPanel != null)
+        {
+            CurrentPhase = Phase.CityStateSelect;
+            _cityP1Submitted = false;
+            _cityP2Submitted = false;
+            cityStateSelectionPanel.Show(PlayerSide.P1);
+            return;
+        }
+
+        // 兜底：缺 CityStateManager 或选择面板 → 跳过城邦选择（本局城邦 = None）
+        Debug.LogWarning("[GameFlowController] 缺少 CityStateManager 或城邦选择面板，跳过城邦选择（本局城邦 = None）");
         CurrentPhase = Phase.P1Select;
         unitSelectionPanel?.Show(PlayerSide.P1);
+    }
+
+    // ==========================================
+    //  城邦选择（UI_CityStateSelection 调用）
+    // ==========================================
+    /// <summary>某方提交心仪城邦（UI 采集后调用；双提交后由 CityStateManager 自动「求交集 + 随机」结算）。
+    /// 驱动逻辑：另一方未提交 → 切换面板到另一方；双方都已提交 → 显示揭晓。</summary>
+    public void OnCityStateSelectionSubmitted(PlayerSide side, List<CityStateKind> choices)
+    {
+        var manager = CityStateManager.Instance;
+        if (manager == null || CurrentPhase != Phase.CityStateSelect) return;
+
+        manager.SubmitSelection(side, choices);
+        if (side == PlayerSide.P1) _cityP1Submitted = true; else _cityP2Submitted = true;
+        Debug.Log($"[GameFlowController] {side} 提交心仪城邦 [{string.Join(", ", choices)}]");
+
+        if (_cityP1Submitted && _cityP2Submitted)
+        {
+            // 双方都已提交：结算已由提交管线完成，城邦已写入状态（无重合时为 None）
+            cityStateSelectionPanel?.ShowResult(manager.CurrentCityState);
+        }
+        else
+        {
+            // 本地热座驱动：切换到另一方选择（逻辑层不依赖此顺序）
+            cityStateSelectionPanel?.Show(side == PlayerSide.P1 ? PlayerSide.P2 : PlayerSide.P1);
+        }
+    }
+
+    /// <summary>揭晓确认（UI 揭晓视图的继续按钮）→ 进入 P1 选棋子，其后流程顺序不变</summary>
+    public void OnCityStateRevealConfirmed()
+    {
+        if (CurrentPhase != Phase.CityStateSelect) return;
+        cityStateSelectionPanel?.Hide();
+        CurrentPhase = Phase.P1Select;
+        unitSelectionPanel?.Show(PlayerSide.P1);
+        Debug.Log("[GameFlowController] 城邦选择完成，进入 P1 选棋子");
     }
 
     // ==========================================

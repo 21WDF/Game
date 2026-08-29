@@ -24,6 +24,12 @@ using UnityEngine;
 /// </summary>
 public static class ElementReactionTable
 {
+    /// <summary>元素系统生效判定（元素系统本体的城邦过滤，内聚在核心入口）：
+    /// 仅当前城邦 == 元素城邦时元素系统生效；其他城邦下不反应、不附着（退回「无元素」基线）。
+    /// 消费方：GetReaction / ResolveElementInteraction / ElementColorMapper / UI 元素图标。</summary>
+    public static bool ElementSystemActive
+        => CityStateManager.Instance != null && CityStateManager.Instance.IsActive(CityStateKind.Element);
+
     /// <summary>反应配置（描述一次元素反应的数值效果）</summary>
     [System.Serializable]
     public struct ReactionConfig
@@ -40,16 +46,27 @@ public static class ElementReactionTable
         public int KnockbackDistance;          // 击退格数（超载；AttackPiece 伤害结算后由 KnockbackResolver 处理）
     }
 
-    /// <summary>查询反应配置（向后兼容：无修饰器）</summary>
+    /// <summary>无反应配置（Type=None、倍率 1、无任何副作用）——非元素城邦下的统一返回</summary>
+    private static ReactionConfig NoReaction => new ReactionConfig
+    {
+        Type = ReactionType.None,
+        DamageMultiplier = 1.0f
+    };
+
+    /// <summary>查询反应配置（向后兼容：无修饰器）。
+    /// 城邦过滤：非元素城邦下恒返回「无反应」（倍率 1、无副作用）——蒸发/融化/超载/感电/冻结/超导全部不触发。</summary>
     public static ReactionConfig GetReaction(ElementType baseElement, ElementType trigger)
     {
+        if (!ElementSystemActive) return NoReaction;
         return RuntimeReactionTable.Instance.Resolve(baseElement, trigger, null);
     }
 
-    /// <summary>查询反应配置（带棋子修饰器链：装备被动用）</summary>
+    /// <summary>查询反应配置（带棋子修饰器链：装备被动用）。
+    /// 城邦过滤：非元素城邦下恒返回「无反应」（修饰器链/数据库均不经过，数据源零改动）。</summary>
     public static ReactionConfig GetReaction(ElementType baseElement, ElementType trigger,
         IReadOnlyList<IReactionModifier> pieceModifiers)
     {
+        if (!ElementSystemActive) return NoReaction;
         return RuntimeReactionTable.Instance.Resolve(baseElement, trigger, pieceModifiers);
     }
 
@@ -95,6 +112,10 @@ public static class ElementReactionTable
         ElementType baseElement, int baseGauge,
         ElementType triggerElement, int triggerGauge)
     {
+        // 城邦过滤：非元素城邦下不附着、不消耗（无元素基线）——所有附着写入点据此写 None/0
+        if (!ElementSystemActive)
+            return (ElementType.None, 0);
+
         // 无触发元素 → 不变
         if (triggerElement == ElementType.None)
             return (baseElement, baseGauge);

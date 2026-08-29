@@ -51,6 +51,10 @@ public class UI_StatElement : MonoBehaviour
     [Tooltip("附着元素 Gauge 数值文本（显示元素量；无附着时隐藏）")]
     public TextMeshProUGUI affixedElementGaugeText;
 
+    [Header("新增：护盾")]
+    [Tooltip("护盾层数文本（有护盾时显示层数；无护盾时隐藏）")]
+    public TextMeshProUGUI shieldStacksText;
+
     [Header("新增：装备图标")]
     [Tooltip("3 个装备槽位图标（长度=3）")]
     [FormerlySerializedAs("equipIcons")]
@@ -83,6 +87,8 @@ public class UI_StatElement : MonoBehaviour
     [System.NonSerialized] public ElementType lastAffixedElement = (ElementType)(-1);
     [System.NonSerialized] public int lastAffixedGauge = -1;
 
+    [System.NonSerialized] public int lastShieldStacks = -1;
+
     [System.NonSerialized] public int lastStatusHash;
 
     /// <summary>对象池 Get 时调用：重置所有缓存，强制下一帧全量刷新。</summary>
@@ -98,6 +104,7 @@ public class UI_StatElement : MonoBehaviour
         lastInnateElement = (ElementType)(-1);
         lastAffixedElement = (ElementType)(-1);
         lastAffixedGauge = -1;
+        lastShieldStacks = -1;
         lastStatusHash = 0;
     }
 }

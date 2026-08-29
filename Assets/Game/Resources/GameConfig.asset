@@ -37,6 +37,8 @@ MonoBehaviour:
   floatDamageThunder: {r: 1, g: 0.8, b: 0, a: 1}
   floatDamageIce: {r: 0.5, g: 0.8, b: 1, a: 1}
   floatDamagePhysical: {r: 1, g: 1, b: 1, a: 1}
+  floatDamageMagical: {r: 0.7, g: 0.4, b: 1, a: 1}
+  floatDamageTrue: {r: 1, g: 0.85, b: 0.3, a: 1}
   floatReactionDamage: {r: 0.8, g: 0.4, b: 1, a: 1}
   floatReactionVaporize: {r: 1, g: 0.4, b: 0.2, a: 1}
   floatReactionMelt: {r: 1, g: 0.3, b: 0.3, a: 1}

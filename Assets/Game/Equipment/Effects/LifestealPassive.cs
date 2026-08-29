@@ -20,9 +20,16 @@ public class LifestealPassive : IPassiveEffect
     public void OnEquip(PieceModel owner) { }
     public void OnUnequip(PieceModel owner) { }
 
-    /// <summary>造成伤害后：固定 + 百分比吸血（向下取整；Heal 封顶 MaxHP。target 未用，仅匹配接口签名）</summary>
+    /// <summary>造成伤害后：固定 + 百分比吸血（向下取整；Heal 封顶 MaxHP）。
+    /// 护盾拦截（基座修复）：伤害被目标护盾免掉时不吸血（固定 + 百分比都不吸）——
+    /// 免伤 = 攻击方无伤害收益；非拦截场景吸血数值与原逻辑完全一致</summary>
     public void OnDamageDealt(PieceModel owner, int damage, PieceModel target = null)
     {
+        if (target != null && target.LastHitAbsorbedByShield)
+        {
+            Debug.Log($"[LifestealPassive] {owner.Data.displayName} 的伤害被护盾格挡，不吸血");
+            return;
+        }
         int heal = _baseHeal + Mathf.FloorToInt(damage * _percent / 100f);
         if (heal <= 0) return;
         owner.Heal(heal);

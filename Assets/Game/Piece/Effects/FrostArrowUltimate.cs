@@ -77,11 +77,15 @@ public class FrostArrowUltimate : IUltimateEffect
                 else
                     damage = Mathf.Max(1, Mathf.RoundToInt(raw));
 
-                PieceManager.Instance.ApplyIncomingDamage(enemy, damage, caster,
+                // 返回 false = 被护盾拦截 → 不给金币；元素附着/反应照常
+                bool landed = PieceManager.Instance.ApplyIncomingDamage(enemy, damage, caster,
                     DamageSource.Ultimate, DamageKind.Magical, element);
                 PieceManager.Instance.ApplyElementInteraction(enemy, caster, element, 2, reaction);
-                GoldManager.Instance?.OnDamageDealt(caster, damage);
-                GoldManager.Instance?.OnDamageReceived(enemy, damage);
+                if (landed)
+                {
+                    GoldManager.Instance?.OnDamageDealt(caster, damage);
+                    GoldManager.Instance?.OnDamageReceived(enemy, damage);
+                }
             }
             else
             {
@@ -91,11 +95,15 @@ public class FrostArrowUltimate : IUltimateEffect
                     enemy.EffectiveDefense,
                     element,
                     enemy.AffixedElement);
-                PieceManager.Instance.ApplyIncomingDamage(enemy, damage, caster,
+                // 返回 false = 被护盾拦截 → 不给金币；元素附着/反应照常
+                bool landed = PieceManager.Instance.ApplyIncomingDamage(enemy, damage, caster,
                     DamageSource.Ultimate, DamageKind.Physical, element);
                 PieceManager.Instance.ApplyElementInteraction(enemy, caster, element, 2, reaction);
-                GoldManager.Instance?.OnDamageDealt(caster, damage);
-                GoldManager.Instance?.OnDamageReceived(enemy, damage);
+                if (landed)
+                {
+                    GoldManager.Instance?.OnDamageDealt(caster, damage);
+                    GoldManager.Instance?.OnDamageReceived(enemy, damage);
+                }
             }
 
             // 致死者销毁（排除点击格棋子——留给 UseUltimateCore 尾部，防双重销毁）

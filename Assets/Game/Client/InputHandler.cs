@@ -46,7 +46,7 @@ public class InputHandler : MonoBehaviour
     public static bool IsAnyPanelOpen => _openPanelCount > 0;
     /// <summary>面板打开/关闭状态翻转时触发（true=有面板打开，false=全部关闭）—— UI_EnergyBar 订阅以控制显隐</summary>
     public static event System.Action<bool> OnAnyPanelOpenChanged;
-    /// <summary>面板打开时调用（UI_ShopPanel/UI_EquipmentPanel.Toggle 内 show=true 时）</summary>
+    /// <summary>面板打开时调用（UI_ShopPanel.Toggle 内 show=true 时；常驻侧栏不调用）</summary>
     public static void RegisterPanelOpen()
     {
         bool wasOpen = _openPanelCount > 0;

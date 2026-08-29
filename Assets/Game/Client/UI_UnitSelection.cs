@@ -84,7 +84,9 @@ public class UI_UnitSelection : MonoBehaviour
             // 显示范围：内联配置 baseRange（与 PieceModel.MoveRange/AttackRange 口径一致）
             int dispMove = data.moveConfig.baseRange;
             int dispAttack = data.attackConfig.baseRange;
-            if (item.descText != null) item.descText.text = $"移{dispMove} 射{dispAttack} 元素{data.innateElement}";
+            // 城邦过滤：非元素城邦下元素系统不生效，不显示先天元素
+            string elemText = ElementReactionTable.ElementSystemActive ? $" 元素{data.innateElement}" : string.Empty;
+            if (item.descText != null) item.descText.text = $"移{dispMove} 射{dispAttack}{elemText}";
             if (item.statsText != null)
                 item.statsText.text = data.ultimateConfig != null ? $"大招:{data.ultimateConfig.ultimateName}" : "无大招";
             if (item.buttonText != null) item.buttonText.text = "选择";

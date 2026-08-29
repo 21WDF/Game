@@ -61,6 +61,16 @@ public static class ElementColorMapper
         }
     }
 
+    /// <summary>伤害跳字颜色统一入口（View 层城邦过滤）：
+    /// element != None 且元素系统生效（元素城邦）→ 元素色；否则视为无元素 → 伤害类型默认色。
+    /// 消费方：普攻路径 / ApplyIncomingDamage / 溅射路径的 ShowDamage 颜色。</summary>
+    public static Color GetDamageColor(ElementType element, DamageKind kind)
+    {
+        if (element != ElementType.None && ElementReactionTable.ElementSystemActive)
+            return GetElementDamageColor(element);
+        return GetDamageKindColor(kind);
+    }
+
     /// <summary>反应颜色（按反应类型；本阶段预留给未来按反应着色提示文字）。
     /// None 回退 floatReactionDamage 紫。</summary>
     public static Color GetReactionColor(ReactionType type)

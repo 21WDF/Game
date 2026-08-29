@@ -418,6 +418,15 @@ public class BattleController : MonoBehaviour
     {
         var piece = _model.SelectedPiece;
 
+        // 季风之城·高温（二期）：已行动（本回合攻击过/移动过被锁定）的棋子不能再移动
+        //（null 安全；生效判断内聚在 MonsoonManager，非季风城邦/无高温恒 false）
+        if (MonsoonManager.Instance != null && MonsoonManager.Instance.IsMoveBlockedByHeat(piece))
+        {
+            Debug.Log("[BattleController] 高温锁定：该棋子本回合已行动，不能再移动");
+            DeselectPiece();
+            return;
+        }
+
         // 探索者护臂：免 AP 移动可用 → 跳过 AP 检查（下方用 MarkUsed 代替 ConsumeAP）
         var freeMove = FindUsableFreeAP(piece, FreeAPType.Move);
         if (freeMove == null)
@@ -460,6 +469,8 @@ public class BattleController : MonoBehaviour
         else APManager.Instance.ConsumeAP(piece.Owner, 1);
         // 执行移动（委托 PieceManager 沿完整路径移动，同步 Model/View/Layout）
         PieceManager.Instance?.MovePieceAlongPath(piece, path, skipEnergy: freeMove != null && !freeMove.GainEnergy);
+        // 季风之城·高温（二期）：移动完成后锁定该棋子本回合不能再行动（null 安全纯通知，判断内聚在管理器）
+        MonsoonManager.Instance?.OnMoveCompleted(piece);
         // 移动后位置变化，途经点已失效 → 清空
         _waypoints.Clear();
 
@@ -591,12 +602,13 @@ public class BattleController : MonoBehaviour
                     int splashDmg = hpBefore - occupant.CurrentHP;
                     if (splashDmg > 0 && splashView != null && FloatingTextPool.Instance != null)
                     {
-                        Color ec = ElementColorMapper.GetElementDamageColor(attacker.Data.innateElement);
+                        Color ec = ElementColorMapper.GetDamageColor(attacker.Data.innateElement, DamageKind.Physical);
                         FloatingTextPool.Instance.ShowDamage(splashDmg, splashPos, ec, DamageKind.Physical);
                     }
                     // 手动金币结算：用基础溅射伤害（overrideAttack - 目标 EffectiveDefense，不含反应倍率）× splashGoldPercent
-                    //   splashGoldPercent=0 时不产生金币调用（与 splashIsElemental=false 分支口径一致）
-                    if (area.SplashGoldPercent > 0f)
+                    //   splashGoldPercent=0 时不产生金币调用（与 splashIsElemental=false 分支口径一致）；
+                    //   splashDmg>0 = 实际掉血（护盾拦截时 HP 无变化 → splashDmg=0，不给金币；数值不变，仅加拦截判断）
+                    if (area.SplashGoldPercent > 0f && splashDmg > 0)
                     {
                         int damage = Mathf.Max(1, overrideAttack - occupant.EffectiveDefense);
                         int gold = Mathf.RoundToInt(damage * area.SplashGoldPercent);
@@ -610,18 +622,20 @@ public class BattleController : MonoBehaviour
                     // attackPercent=0 即 0%（不贡献攻击力）；按用户确认，非「0 视为完整」
                     float raw = area.BaseDamage + attacker.EffectiveAttack * area.AttackPercent - occupant.EffectiveDefense;
                     int damage = Mathf.Max(1, Mathf.RoundToInt(raw));
-                    // 金币结算（TakeDamage 之前）：splashGoldPercent>0 时手动 AddGold（0 时不产生任何金币调用）
-                    if (area.SplashGoldPercent > 0f)
+                    // 统一伤害入口：非元素溅射也触发 OnDamageReceived（打断再生计时/反甲等）
+                    // 返回 false = 被护盾拦截 → 跳过金币（免伤 = 无伤害收益）
+                    bool landed = PieceManager.Instance?.ApplyIncomingDamage(occupant, damage, attacker, DamageSource.Splash, DamageKind.Physical) ?? false;
+
+                    // 金币结算（伤害结算后，仅实际造成伤害时）：splashGoldPercent>0 时手动 AddGold（0 时不产生任何金币调用；数值不变，仅加拦截判断）
+                    if (landed && area.SplashGoldPercent > 0f)
                     {
                         int gold = Mathf.RoundToInt(damage * area.SplashGoldPercent);
                         GoldManager.Instance?.AddGold(attacker.Owner, gold);
                     }
-                    // 统一伤害入口：非元素溅射也触发 OnDamageReceived（打断再生计时/反甲等）
-                    PieceManager.Instance?.ApplyIncomingDamage(occupant, damage, attacker, DamageSource.Splash, DamageKind.Physical);
                     // 浮动跳字（溅射固定物理形态纯色块）；View 此时仍存活（DestroyPiece 在下方死亡检查才调）
                     if (FloatingTextPool.Instance != null && occupant.View != null)
                     {
-                        Color ec = ElementColorMapper.GetElementDamageColor(attacker.Data.innateElement);
+                        Color ec = ElementColorMapper.GetDamageColor(attacker.Data.innateElement, DamageKind.Physical);
                         FloatingTextPool.Instance.ShowDamage(damage, occupant.View.transform.position, ec, DamageKind.Physical);
                     }
                     Debug.Log($"[BattleController] 溅射：{attacker.Data.displayName} 对 {occupant.Data.displayName} 造成 {damage} 伤害（剩余 {occupant.CurrentHP}）");

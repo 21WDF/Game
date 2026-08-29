@@ -54,14 +54,17 @@ public class MusouStrikeUltimate : IUltimateEffect
             var enemy = PieceLayoutModel.Instance?.GetPieceAt(coord);
             if (enemy == null || enemy.IsDead || enemy.Owner == caster.Owner) continue;
 
-            // 物理 + 雷元素反应口径（同菲林斯普通态）
+            // 物理 + 雷元素反应口径（同菲林斯普通态）；返回 false = 被护盾拦截 → 不给金币
             var (damage, reaction) = DamageCalculator.CalculateWithElement(
                 attackValue, enemy.EffectiveDefense, element, enemy.AffixedElement);
-            PieceManager.Instance.ApplyIncomingDamage(enemy, damage, caster,
+            bool landed = PieceManager.Instance.ApplyIncomingDamage(enemy, damage, caster,
                 DamageSource.Ultimate, DamageKind.Physical, element);
             PieceManager.Instance.ApplyElementInteraction(enemy, caster, element, 2, reaction);
-            GoldManager.Instance?.OnDamageDealt(caster, damage);
-            GoldManager.Instance?.OnDamageReceived(enemy, damage);
+            if (landed)
+            {
+                GoldManager.Instance?.OnDamageDealt(caster, damage);
+                GoldManager.Instance?.OnDamageReceived(enemy, damage);
+            }
 
             if (enemy.IsDead && !enemy.Coord.Equals(targetCoord))
                 PieceManager.Instance.DestroyPiece(enemy, caster);

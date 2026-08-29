@@ -107,12 +107,16 @@ public class ThunderSweepUltimate : IUltimateEffect, IPartialEnergyUltimate
                 else
                     damage = Mathf.Max(1, Mathf.RoundToInt(raw));
 
-                PieceManager.Instance.ApplyIncomingDamage(enemy, damage, caster,
+                // 返回 false = 被护盾拦截 → 不给金币（免伤 = 无伤害收益）；元素附着/反应照常
+                bool landed = PieceManager.Instance.ApplyIncomingDamage(enemy, damage, caster,
                     DamageSource.Ultimate, DamageKind.Magical, element);
                 // 元素附着 + 反应状态副作用（gauge=2 同大招募发量；超导减防/感电DoT/冻结）
                 PieceManager.Instance.ApplyElementInteraction(enemy, caster, element, 2, reaction);
-                GoldManager.Instance?.OnDamageDealt(caster, damage);
-                GoldManager.Instance?.OnDamageReceived(enemy, damage);
+                if (landed)
+                {
+                    GoldManager.Instance?.OnDamageDealt(caster, damage);
+                    GoldManager.Instance?.OnDamageReceived(enemy, damage);
+                }
 
                 if (enemy.IsDead && !enemy.Coord.Equals(targetCoord))
                     PieceManager.Instance.DestroyPiece(enemy, caster);
@@ -127,23 +131,33 @@ public class ThunderSweepUltimate : IUltimateEffect, IPartialEnergyUltimate
                     enemy.EffectiveDefense,
                     caster.Data.innateElement,
                     enemy.AffixedElement);
-                PieceManager.Instance.ApplyIncomingDamage(enemy, damage, caster,
+                // 返回 false = 被护盾拦截 → 不给金币；元素附着/反应照常
+                bool landed = PieceManager.Instance.ApplyIncomingDamage(enemy, damage, caster,
                     DamageSource.Ultimate, DamageKind.Physical, caster.Data.innateElement);
 
                 // 元素附着与消耗（大招募发量=2，同烈焰斩）
+                // 护盾染色封印（元素城邦二期）：已染色护盾封印同元素附着 → 跳过附着写入（反应照常）
                 if (caster.Data.innateElement != ElementType.None)
                 {
-                    var (resultElem, resultGauge) = ElementReactionTable.ResolveElementInteraction(
-                        enemy.AffixedElement, enemy.AffixedElementGauge,
-                        caster.Data.innateElement, 2);
-                    enemy.AffixedElement = resultElem;
-                    enemy.AffixedElementGauge = resultGauge;
+                    if (!enemy.BlocksElementAttachment(caster.Data.innateElement))
+                    {
+                        var (resultElem, resultGauge) = ElementReactionTable.ResolveElementInteraction(
+                            enemy.AffixedElement, enemy.AffixedElementGauge,
+                            caster.Data.innateElement, 2);
+                        enemy.AffixedElement = resultElem;
+                        enemy.AffixedElementGauge = resultGauge;
+                        // 染色：附着成功（结果非 None）→ 未染色护盾变为对应元素盾
+                        enemy.TryDyeShieldElement(resultElem);
+                    }
                     if (reaction.DefenseReduction > 0)
                         enemy.CurrentDefenseReduction = reaction.DefenseReduction;
                 }
 
-                GoldManager.Instance?.OnDamageDealt(caster, damage);
-                GoldManager.Instance?.OnDamageReceived(enemy, damage);
+                if (landed)
+                {
+                    GoldManager.Instance?.OnDamageDealt(caster, damage);
+                    GoldManager.Instance?.OnDamageReceived(enemy, damage);
+                }
 
                 if (enemy.IsDead && !enemy.Coord.Equals(targetCoord))
                     PieceManager.Instance.DestroyPiece(enemy, caster);

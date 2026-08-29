@@ -43,3 +43,7 @@ Thumbs.db
 
 # ===== 保留 .workbuddy 但忽略内部临时 =====
 .workbuddy/artifacts/
+
+# ===== 第三方插件嵌套 .git（追踪插件内容，但不追踪其内部版本控制历史）=====
+Assets/Editor/Pmx2Fbx/.git/
+Assets/MyToonShader/UnityGenshinToonShader/.git/

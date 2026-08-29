@@ -34,15 +34,47 @@ public class PieceModel
     public int EquipmentHP => EquippedItems.Where(e => e != null).Sum(e => e.Data.bonusHP);
 
     // ---- 便捷属性（含装备加成；减法公式用）----
-    public int EffectiveAttack => Data != null ? Data.attack + EquipmentAttack + GetTotalKillAttackBonus() + GetTempBuffTotal("Attack") + GetAuraBonus("Attack") : 0;
-    public int EffectiveDefense => Data != null ? Data.defense + EquipmentDefense - CurrentDefenseReduction - PassiveDefenseReduction + TemporaryDefenseBonus + GetTotalStoneSkinDefense() + GetTempBuffTotal("Defense") + GetAuraBonus("Defense") : 0;
-    public int MaxHP => Data != null ? Data.maxHP + EquipmentHP : 0;
+    // 季风之城（夏·攻击聚合）：查询式聚合，生效判断内聚在 MonsoonManager（非季风城邦返回 0）
+    // 永久加成（季风·雷暴三期C）：对局内永久、可叠加累积、无回合递减；只新增求和项，不改现有计算逻辑
+    public int EffectiveAttack => Data != null ? Data.attack + EquipmentAttack + GetTotalKillAttackBonus() + GetTempBuffTotal("Attack") + GetAuraBonus("Attack") + (MonsoonManager.Instance != null ? MonsoonManager.Instance.GetAttackBonus() : 0) + PermanentAttackBonus : 0;
+    public int EffectiveDefense => Data != null ? Data.defense + EquipmentDefense - CurrentDefenseReduction - PassiveDefenseReduction + TemporaryDefenseBonus + GetTotalStoneSkinDefense() + GetTempBuffTotal("Defense") + GetAuraBonus("Defense") + PermanentDefenseBonus : 0;
+    public int MaxHP => Data != null ? Data.maxHP + EquipmentHP + PermanentHPBonus : 0;
 
-    /// <summary>有效移动范围（内联 moveConfig.baseRange + 装备加成）</summary>
-    public int MoveRange => Data != null ? Data.moveConfig.baseRange + EquipmentMoveRange : 0;
+    /// <summary>有效移动范围（内联 moveConfig.baseRange + 装备加成）。
+    /// 季风之城（昼夜修正）：昼 +1 / 夜 -1，最终 clamp 下限 1（夜至少可行动 1 格）；
+    /// 生效判断与 clamp 内聚在 MonsoonManager（非季风城邦原样返回，行为不变）。
+    /// 永久加成（雷暴三期C）：+PermanentMoveBonus 求和项</summary>
+    public int MoveRange => Data != null
+        ? (MonsoonManager.Instance != null ? MonsoonManager.Instance.GetMoveRange(Data.moveConfig.baseRange + EquipmentMoveRange + PermanentMoveBonus) : Data.moveConfig.baseRange + EquipmentMoveRange + PermanentMoveBonus)
+        : 0;
 
-    /// <summary>有效攻击范围（内联 attackConfig.baseRange + 装备加成）</summary>
-    public int AttackRange => Data != null ? Data.attackConfig.baseRange + EquipmentAttackRange : 0;
+    /// <summary>有效攻击范围（内联 attackConfig.baseRange + 装备加成）。
+    /// 季风之城（暴雨）：上回合受击的棋子 -N（下限 1）；生效判断与 clamp 内聚在 MonsoonManager
+    ///（非季风城邦/未受击原样返回，行为不变）。永久加成（雷暴三期C）：+PermanentAttackRangeBonus 求和项</summary>
+    public int AttackRange => Data != null
+        ? (MonsoonManager.Instance != null ? MonsoonManager.Instance.GetAttackRange(this, Data.attackConfig.baseRange + EquipmentAttackRange + PermanentAttackRangeBonus) : Data.attackConfig.baseRange + EquipmentAttackRange + PermanentAttackRangeBonus)
+        : 0;
+
+    // ---- 对局内永久属性加成（季风·雷暴三期C：雷劈概率获得；随棋子存续、无回合递减、可叠加累积）----
+    public int PermanentHPBonus { get; set; }
+    public int PermanentAttackBonus { get; set; }
+    public int PermanentDefenseBonus { get; set; }
+    public int PermanentMoveBonus { get; set; }
+    public int PermanentAttackRangeBonus { get; set; }
+
+    /// <summary>施加一条永久加成（雷暴雷劈入口调用；累加式，多次雷劈可叠加）</summary>
+    public void AddPermanentBonus(MonsoonConfig.PermanentBonusType type, int value)
+    {
+        if (value == 0) return;
+        switch (type)
+        {
+            case MonsoonConfig.PermanentBonusType.HP: PermanentHPBonus += value; break;
+            case MonsoonConfig.PermanentBonusType.Attack: PermanentAttackBonus += value; break;
+            case MonsoonConfig.PermanentBonusType.Defense: PermanentDefenseBonus += value; break;
+            case MonsoonConfig.PermanentBonusType.Move: PermanentMoveBonus += value; break;
+            case MonsoonConfig.PermanentBonusType.Range: PermanentAttackRangeBonus += value; break;
+        }
+    }
 
     // ---- 元素状态（元素城邦系统）----
     /// <summary>同种元素叠加时的 Gauge 上限（每回合 -1 自然消耗；5 足够容纳合理叠加场景）</summary>
@@ -109,6 +141,79 @@ public class PieceModel
     public int VulnerableTurnsRemaining { get; set; }
     /// <summary>易伤增伤百分比（50 = 受到伤害 +50%；仅 VulnerableTurnsRemaining&gt;0 时生效，回合耗尽时清零）</summary>
     public int VulnerablePercent { get; set; }
+
+    // ---- 护盾系统（基座）----
+    /// <summary>护盾层数（0 = 无盾；上限 3，每层免一次伤害。由 PieceManager.TryAbsorbByShield 拦截消耗；
+    /// 圣盾等被动施加时刷新到上限不叠加。护盾只拦「伤害数值」——元素附着/反应/冻结/感电/减防照常发生）。
+    /// 修改一律走 <see cref="SetShield"/>（触发 UI 事件），不要直接赋值</summary>
+    public int ShieldStacks { get; private set; }
+    /// <summary>护盾元素标签（None = 普通盾；元素盾对同元素伤害免疫【免伤不扣层】，
+    /// 真实伤害无视元素免疫仍扣层。二期「元素城邦染色」将写入此字段）</summary>
+    public ElementType ShieldElement { get; private set; }
+    /// <summary>是否有护盾（派生）</summary>
+    public bool HasShield => ShieldStacks > 0;
+
+    /// <summary>护盾层数变化事件（对标 EnergyModel.OnEnergyChanged）：获得/消耗/破碎/刷新时触发，
+    /// 参数 = 最新层数 + 元素标签（元素为二期染色预留）。UI 订阅显示层数；层数 0 时 UI 隐藏。
+    /// 纯通知，不参与任何结算逻辑。</summary>
+    public event System.Action<int, ElementType> OnShieldChanged;
+
+    /// <summary>护盾统一修改入口（施加/扣层/破碎/刷新都走这里）：赋值 + 触发 OnShieldChanged。
+    /// stacks &lt; 0 按 0 处理；层数归 0 时元素标签一并清空（盾碎语义）。</summary>
+    public void SetShield(int stacks, ElementType element)
+    {
+        if (stacks <= 0)
+        {
+            stacks = 0;
+            element = ElementType.None;
+        }
+        ShieldStacks = stacks;
+        ShieldElement = element;
+        OnShieldChanged?.Invoke(stacks, element);
+    }
+
+    // ---- 护盾元素染色（元素城邦二期；生效条件 = master 总闸开 且 当前城邦 == 元素城邦）----
+    /// <summary>染色机制是否生效：shieldElementDyeingEnabled 为 master 总闸（保留序列化字段不删），
+    /// 叠加「当前城邦 == 元素城邦」过滤——非元素城邦下不染色、不封印（护盾退回普通层数护盾）。
+    /// 护盾基座（层数/拦截/吸血金币拦截/UI）不受此开关影响。</summary>
+    private static bool DyeingActive
+    {
+        get
+        {
+            var config = Resources.Load<GameConfig>("GameConfig");
+            if (config == null || !config.shieldElementDyeingEnabled) return false;
+            var city = CityStateManager.Instance;
+            return city != null && city.IsActive(CityStateKind.Element);
+        }
+    }
+
+    /// <summary>封印判定（查询，不改状态）：染色生效时，已染色护盾对「同元素」附着封印——
+    /// 该元素无法再附着到本棋子（其他元素照常）。染色未生效/未染色/无盾 → 永不封印。
+    /// 由各元素附着调用点在写入 AffixedElement 前查询；元素反应照常发生（封印的是附着，不是反应）。</summary>
+    public bool BlocksElementAttachment(ElementType element)
+    {
+        if (element == ElementType.None) return false;
+        if (!DyeingActive) return false;
+        return HasShield && ShieldElement == element;
+    }
+
+    /// <summary>染色入口（附着结算后调用）：染色生效 + 有盾 + 未染色 + 本次附着结果非 None
+    /// → 护盾永久变为该元素盾。走 SetShield 触发 UI 事件；重复染色（已有元素标签）不生效。
+    /// 返回 true = 发生了染色。</summary>
+    public bool TryDyeShieldElement(ElementType attachedElement)
+    {
+        if (attachedElement == ElementType.None) return false;
+        if (!DyeingActive) return false;
+        if (!HasShield || ShieldElement != ElementType.None) return false;
+        SetShield(ShieldStacks, attachedElement);
+        Debug.Log($"[PieceModel] {Data.displayName} 的护盾被染色为 {attachedElement}元素盾");
+        return true;
+    }
+
+    /// <summary>最近一次受击是否被护盾拦截（AttackPiece 每次结算后更新；
+    /// LifestealPassive 据此跳过吸血——护盾免伤 = 攻击方无伤害收益。
+    /// 仅供伤害收益类被动读取，不参与数值结算）</summary>
+    public bool LastHitAbsorbedByShield { get; set; }
 
     // ---- 被动系统（阶段②框架；具体被动效果 2.2 使用）----
     /// <summary>临时属性 buff 列表（如"攻击+10 持续10回合"）；生效/递减逻辑 2.2 实现</summary>

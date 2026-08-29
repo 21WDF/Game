@@ -36,6 +36,10 @@ public class DebugManager : MonoBehaviour
     public int[] p1PieceIds = new int[] { 1, 10, 11, 12, 13, 15, 16 };
     public int[] p2PieceIds = new int[] { 1, 10, 11, 12, 13, 15, 16 };
 
+    [Header("本局城邦")]
+    [Tooltip("调试模式启动时直接设置本局城邦（跳过城邦选择 UI）；None = 不指定，本局无城邦、专属机制不生效")]
+    public CityStateKind debugCityState = CityStateKind.None;
+
     [Header("测试参数（运行时修改立即生效）")]
     [Tooltip("P1 金币（值变化时设为此值，非持续锁定）")]
     public int testGoldP1 = 9999;
@@ -121,20 +125,28 @@ public class DebugManager : MonoBehaviour
             gfc.enabled = false;  // 停用其生命周期（无 Update，主要防止后续逻辑触发）
         }
 
-        // 2) 摆棋：P1 半场 r>=0，P2 半场 r<0
+        // 2) 指定本局城邦（跳过城邦选择 UI；走 CityStateManager 公开设置接口，触发城邦变化事件，
+        //    各专属机制据此过滤生效）。None = 不指定（保持现状，本局无城邦）
+        if (debugCityState != CityStateKind.None && CityStateManager.Instance != null)
+        {
+            CityStateManager.Instance.SetCityState(debugCityState);
+            Debug.Log($"[DebugManager] 调试指定本局城邦：{debugCityState}");
+        }
+
+        // 3) 摆棋：P1 半场 r>=0，P2 半场 r<0
         if (!SpawnSides())
         {
             Debug.LogError("[DebugManager] 摆棋失败，放弃启动对战（请检查 PieceManager.registry / 棋盘是否就绪）");
             return;
         }
 
-        // 3) 应用初始测试金币
+        // 4) 应用初始测试金币
         ApplyGold(PlayerSide.P1, testGoldP1);
         ApplyGold(PlayerSide.P2, testGoldP2);
         _lastGoldP1 = testGoldP1;
         _lastGoldP2 = testGoldP2;
 
-        // 4) 启动第一回合（内部补 AP、重置攻击标记、清高亮）
+        // 5) 启动第一回合（内部补 AP、重置攻击标记、清高亮）
         TurnManager.Instance?.StartFirstTurn();
         Debug.Log("[DebugManager] 调试对战已启动：7v7 已摆好，进入第一回合");
     }

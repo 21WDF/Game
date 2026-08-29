@@ -265,12 +265,15 @@ public class UI_PieceStatsDisplay : MonoBehaviour
         }
 
         // ===== 元素图标（新增）=====
+        // 城邦过滤：非元素城邦下元素系统整体不生效，先天/附着元素图标都隐藏（无元素基线）
+        bool elementSystemOn = ElementReactionTable.ElementSystemActive;
+
         if (el.innateElementIcon != null && elementIconMap != null)
         {
-            var elem = piece.Data != null ? piece.Data.innateElement : ElementType.None;
+            var elem = elementSystemOn && piece.Data != null ? piece.Data.innateElement : ElementType.None;
             if (el.lastInnateElement != elem)
             {
-                var spr = elementIconMap.GetIcon(elem);
+                var spr = elem != ElementType.None ? elementIconMap.GetIcon(elem) : null;
                 el.innateElementIcon.sprite = spr;
                 el.innateElementIcon.gameObject.SetActive(spr != null);
                 el.lastInnateElement = elem;
@@ -279,7 +282,7 @@ public class UI_PieceStatsDisplay : MonoBehaviour
 
         if (el.affixedElementIcon != null && elementIconMap != null)
         {
-            bool has = piece.AffixedElement != ElementType.None && piece.AffixedElementGauge > 0;
+            bool has = elementSystemOn && piece.AffixedElement != ElementType.None && piece.AffixedElementGauge > 0;
             var aff = has ? piece.AffixedElement : ElementType.None;
             if (el.lastAffixedElement != aff)
             {
@@ -298,6 +301,18 @@ public class UI_PieceStatsDisplay : MonoBehaviour
                     el.affixedElementGaugeText.gameObject.SetActive(gauge > 0);
                     el.lastAffixedGauge = gauge;
                 }
+            }
+        }
+
+        // ===== 护盾层数文本（对标 affixedElementGaugeText：有值显示、无值隐藏、变化才更新）=====
+        if (el.shieldStacksText != null)
+        {
+            int stacks = piece.ShieldStacks;
+            if (el.lastShieldStacks != stacks)
+            {
+                el.shieldStacksText.text = stacks > 0 ? stacks.ToString() : "";
+                el.shieldStacksText.gameObject.SetActive(stacks > 0);
+                el.lastShieldStacks = stacks;
             }
         }
 

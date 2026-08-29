@@ -179,11 +179,15 @@ public class PuppetPassive : IPassiveEffect
                 damage = Mathf.Max(1, Mathf.RoundToInt(raw));
             }
 
-            PieceManager.Instance.ApplyIncomingDamage(enemy, damage, _caster,
+            // 返回 false = 被护盾拦截 → 不给金币；元素附着/反应照常
+            bool landed = PieceManager.Instance.ApplyIncomingDamage(enemy, damage, _caster,
                 DamageSource.Ultimate, DamageKind.Physical, element);
             PieceManager.Instance.ApplyElementInteraction(enemy, _caster, element, 2, reaction);
-            if (_caster != null) GoldManager.Instance?.OnDamageDealt(_caster, damage);
-            GoldManager.Instance?.OnDamageReceived(enemy, damage);
+            if (landed)
+            {
+                if (_caster != null) GoldManager.Instance?.OnDamageDealt(_caster, damage);
+                GoldManager.Instance?.OnDamageReceived(enemy, damage);
+            }
 
             if (enemy.IsDead)
                 PieceManager.Instance.DestroyPiece(enemy, _caster);

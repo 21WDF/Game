@@ -48,7 +48,8 @@ public class GoldManager : MonoBehaviour
         {
             GoldPerDamage = _config.goldPerDamage,
             GoldPerDamageReceived = _config.goldPerDamageReceived,
-            StartingGold = _config.startingGold
+            StartingGold = _config.startingGold,
+            OverdraftFloor = _config.overdraftFloor   // 透支下限（贸易之城·一期，可配置防硬编码）
         };
         _model.InitGold(PlayerSide.P1, _config.startingGold);
         _model.InitGold(PlayerSide.P2, _config.startingGold);
@@ -77,6 +78,13 @@ public class GoldManager : MonoBehaviour
     public int GetGold(PlayerSide side) => _model.GetGold(side);
 
     public bool TrySpendGold(PlayerSide side, int amount) => _model.TrySpendGold(side, amount);
+
+    /// <summary>透支消费（贸易之城·一期）：允许金币扣到透支下限（可为负）；金币充足时行为与 TrySpendGold 一致</summary>
+    public bool TrySpendGoldWithOverdraft(PlayerSide side, int amount)
+        => _model != null && _model.TrySpendGoldWithOverdraft(side, amount);
+
+    /// <summary>透支下限（GameConfig 注入；出价支付能力校验等查询用）</summary>
+    public int OverdraftFloor => _model != null ? _model.OverdraftFloor : 0;
 
     /// <summary>增加金币（棋盘道具取消使用时退还等）。UI 通过 OnGoldSettled 自动刷新。</summary>
     public void AddGold(PlayerSide side, int amount) => _model?.AddGold(side, amount);

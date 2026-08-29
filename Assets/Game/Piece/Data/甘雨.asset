@@ -21,13 +21,13 @@ MonoBehaviour:
   baseHPRegen: 0
   moveConfig:
     providerClassName: FreeMoveProvider
-    providerJsonParams:
+    providerJsonParams: 
     baseRange: 3
   attackConfig:
     providerClassName: CircleAttackProvider
-    providerJsonParams:
+    providerJsonParams: 
     baseRange: 4
-  prefab: {fileID: 0}
+  prefab: {fileID: 263417301235028480, guid: 9bd4c040673c9844f8e968b53b5ec0e2, type: 3}
   isSummon: 0
   innateElement: 4
   builtInPassives: []

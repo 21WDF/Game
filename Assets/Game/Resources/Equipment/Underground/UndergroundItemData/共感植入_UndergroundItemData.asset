@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3521088f4506f64bb5c4a57f589c765, type: 3}
+  m_Name: "\u5171\u611F\u690D\u5165_UndergroundItemData"
+  m_EditorClassIdentifier: Assembly-CSharp::UndergroundItemData
+  equipment: {fileID: 11400000, guid: f009a0d3a50d6824b9fdd654586a0141, type: 2}
+  settlement: 0
+  amount: 2
