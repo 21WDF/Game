@@ -23,13 +23,30 @@ MonoBehaviour:
   pieceYOffset: 0.12
   actedPieceColor: {r: 0.55, g: 0.55, b: 0.55, a: 1}
   goldPerDamage: 1
+  shieldElementDyeingEnabled: 1
   goldPerDamageReceived: 0.3
   startingGold: 50
+  overdraftFloor: -50
+  auctionDealCountdownTurns: 6
+  auctionRefreshIntervalTurns: 5
+  interestGoldInterval: 10
+  debtCreditTickTurns: 8
+  auctionReputationThreshold: 6
+  shopPricePercentPerReputation: 10
+  undergroundDamageThreshold: 60
+  undergroundProbBasePercent: 10
+  undergroundProbStepDamage: 30
+  undergroundProbStepPercent: 20
+  undergroundReputationThreshold: 6
+  backpackEquipmentCapacity: 10
+  backpackItemCapacity: 10
   overlayMoveColor: {r: 0.2, g: 0.4, b: 1, a: 0.39215687}
   overlayAttackColor: {r: 1, g: 0.2, b: 0.2, a: 0.39215687}
   overlayAttackEnemyColor: {r: 0.6855345, g: 0.10563253, b: 0.10563253, a: 0.39215687}
   overlayWaypointColor: {r: 0.2, g: 1, b: 0.3, a: 0.5}
   overlayHoverColor: {r: 0.3679244, g: 1, b: 0.83598465, a: 0.39215687}
+  overlayDragTargetColor: {r: 1, g: 0.85, b: 0.3, a: 0.4}
+  overlayLightningResidueColor: {r: 0.75, g: 0.4, b: 1, a: 0.55}
   pathColor: {r: 1, g: 0.9191389, b: 0, a: 0.39215687}
   pathWidth: 0.1
   floatDamageFire: {r: 1, g: 0.4, b: 0.2, a: 1}

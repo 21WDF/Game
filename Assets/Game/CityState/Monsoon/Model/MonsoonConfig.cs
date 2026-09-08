@@ -104,19 +104,26 @@ public class MonsoonConfig : ScriptableObject
     [Header("飓风参数（三期B·幸运方块）")]
     [Tooltip("飓风激活期间，每轮「掉不掉方块」的概率（0~1；掉则该轮 P1/P2 回合开始各掉一批，两批同品质同数量）")]
     [Range(0f, 1f)] public float hurricaneDropChancePerRound = 0.5f;
-    [Tooltip("每批掉落方块的个数（一轮两批：P1/P2 回合开始各一批，两批品质数量一致——平衡保底）")]
-    public int hurricaneDropCount = 2;
+    [Tooltip("每批掉落数量下限（每轮在 [下限, 上限] 内随机一个 N，该轮 P1/P2 回合各掉 N 个——两批同品质同数量平衡保底）")]
+    public int hurricaneDropCountMin = 2;
+    [Tooltip("每批掉落数量上限（低于下限时按下限计）")]
+    public int hurricaneDropCountMax = 3;
+    [Tooltip("幸运方块 3D 实体 prefab（用户在 Editor 准备的正方体等模型；生成到格子世界坐标，复用棋子定位口径）")]
+    public GameObject lootBoxPrefab;
+    [Tooltip("方块 prefab pivot 到脚底的 Y 距离（脚底 pivot 的模型 = 0；中心 pivot 的模型（如 Unity 内置 Cube）= 高度一半，使方块正好坐在格面上不悬空不下沉）")]
+    public float lootBoxYOffset = 0f;
     [Tooltip("幸运方块价值档位列表（按权重随机；每轮所有方块同一档位。可增删档位）")]
     public List<LootBoxTier> lootBoxTiers = new List<LootBoxTier>
     {
         // 设计档位表（三期B_修正）：超高=高级装备+金币100~150（无城邦装备/道具）；低=纯金币1~6（无装备）
-        new LootBoxTier("超高", new Color(1f, 0.25f, 0.25f, 0.85f), 0.05f, true, EquipmentTier.Advanced, 50, -1, 100, 150),
-        new LootBoxTier("高",   new Color(1f, 0.85f, 0.2f, 0.85f),  0.15f, true, EquipmentTier.Intermediate, 50, 9999, 20, 60),
-        new LootBoxTier("中",   new Color(0.25f, 0.55f, 1f, 0.85f), 0.30f, true, EquipmentTier.Basic, 0, 49, 10, 20),
-        new LootBoxTier("低",   new Color(0.6f, 0.6f, 0.6f, 0.85f), 0.50f, false, EquipmentTier.Basic, 0, -1, 1, 6)
+        // 档位材质（品质视觉）在 Inspector 拖入各档 Material（代码默认值不带资产引用）
+        new LootBoxTier("超高", 0.05f, true, EquipmentTier.Advanced, 50, -1, 100, 150),
+        new LootBoxTier("高",   0.15f, true, EquipmentTier.Intermediate, 50, 9999, 20, 60),
+        new LootBoxTier("中",   0.30f, true, EquipmentTier.Basic, 0, 49, 10, 20),
+        new LootBoxTier("低",   0.50f, false, EquipmentTier.Basic, 0, -1, 1, 6)
     };
 
-    /// <summary>幸运方块价值档位（每字段可配、代码零硬编码；贴图/颜色只是档位视觉，拾取前看不到内容）
+    /// <summary>幸运方块价值档位（每字段可配、代码零硬编码；材质只是档位视觉，拾取前看不到内容）
     /// 档位内容规则：非空来源（城邦装备/普通装备/道具/金币）里随机一种，再在来源里随机具体对象：
     /// 城邦装备 = tier=CityState 且 price ∈ [minCityPrice, maxCityPrice]；普通装备 = includeNormalEquipment 为 true 时按 equipmentTier 筛；
     /// 道具 = price ∈ [minCityPrice, maxCityPrice]；金币 = [goldMin, goldMax] 随机。
@@ -126,8 +133,8 @@ public class MonsoonConfig : ScriptableObject
     {
         [Tooltip("档位名（日志用）")]
         public string tierName;
-        [Tooltip("方块贴图/颜色（战术层高亮色；拾取前只显示档位不显示内容）")]
-        public Color color = Color.white;
+        [Tooltip("该档位方块 3D 实体的材质（品质区分视觉，超高/高/中/低各配一档；未拖时保持 prefab 默认材质）")]
+        public Material material;
         [Tooltip("档位概率权重（每轮按权重随机一个档位）")]
         public float weight = 0.25f;
         [Tooltip("是否包含普通装备来源（false = 该档位无普通装备，如低档纯金币）")]
@@ -145,9 +152,9 @@ public class MonsoonConfig : ScriptableObject
 
         public LootBoxTier() { }
 
-        public LootBoxTier(string name, Color c, float w, bool includeEq, EquipmentTier tier, int minP, int maxP, int gMin, int gMax)
+        public LootBoxTier(string name, float w, bool includeEq, EquipmentTier tier, int minP, int maxP, int gMin, int gMax)
         {
-            tierName = name; color = c; weight = w; includeNormalEquipment = includeEq; equipmentTier = tier;
+            tierName = name; weight = w; includeNormalEquipment = includeEq; equipmentTier = tier;
             minCityPrice = minP; maxCityPrice = maxP; goldMin = gMin; goldMax = gMax;
         }
     }
@@ -161,18 +168,31 @@ public class MonsoonConfig : ScriptableObject
     public int lightningStrikeDamage = 20;
     [Tooltip("雷电残留初始强度（位于/经过该格受当前强度真实伤害）")]
     public int lightningResidueInitialPower = 8;
+    [Tooltip("雷电残留格的 3D 材质（替换原半透明高亮：雷劈留残留的格子本体切此材质，归零还原原材质。未配置时无视觉显示，数据层照常生效）")]
+    public Material lightningResidueMaterial;
     [Tooltip("残留强度每轮衰减量（按「轮」计；归零消失）")]
     public int lightningResidueDecayPerRound = 2;
-    [Tooltip("劈中且存活的棋子获得永久加成的概率（0~1）")]
-    [Range(0f, 1f)] public float lightningPermanentBonusChance = 0.4f;
-    [Tooltip("永久加成属性池（每次雷劈从池里随机抽一条；可增删）")]
-    public List<PermanentBonusEntry> permanentBonusPool = new List<PermanentBonusEntry>
+    [Tooltip("雷劈强化概率（0~1；默认 1 = 劈中且存活即强化。注意：已存在的 asset 保留旧序列化值，需在 Inspector 手动改）")]
+    [Range(0f, 1f)] public float lightningPermanentBonusChance = 1f;
+    [Tooltip("残留强化概率（0~1；与雷劈强化互相独立。棋子受残留伤害——停留或经过——且存活时按此概率强化随机一项属性）")]
+    [Range(0f, 1f)] public float lightningResiduePermanentBonusChance = 0.4f;
+    [Tooltip("雷劈强化属性池（劈中且存活触发；与残留池完全独立）")]
+    public List<PermanentBonusEntry> strikePermanentBonusPool = new List<PermanentBonusEntry>
     {
-        new PermanentBonusEntry(PermanentBonusType.HP, 2),
-        new PermanentBonusEntry(PermanentBonusType.Attack, 2),
-        new PermanentBonusEntry(PermanentBonusType.Defense, 2),
-        new PermanentBonusEntry(PermanentBonusType.Move, 1),
-        new PermanentBonusEntry(PermanentBonusType.Range, 1)
+        new PermanentBonusEntry(PermanentBonusType.HP, 2, 1f),
+        new PermanentBonusEntry(PermanentBonusType.Attack, 2, 1f),
+        new PermanentBonusEntry(PermanentBonusType.Defense, 2, 1f),
+        new PermanentBonusEntry(PermanentBonusType.Move, 1, 1f),
+        new PermanentBonusEntry(PermanentBonusType.Range, 1, 1f)
+    };
+    [Tooltip("残留强化属性池（停留/经过残留伤害且存活触发；与雷劈池完全独立）")]
+    public List<PermanentBonusEntry> residuePermanentBonusPool = new List<PermanentBonusEntry>
+    {
+        new PermanentBonusEntry(PermanentBonusType.HP, 2, 1f),
+        new PermanentBonusEntry(PermanentBonusType.Attack, 2, 1f),
+        new PermanentBonusEntry(PermanentBonusType.Defense, 2, 1f),
+        new PermanentBonusEntry(PermanentBonusType.Move, 1, 1f),
+        new PermanentBonusEntry(PermanentBonusType.Range, 1, 1f)
     };
 
     /// <summary>永久加成属性类型（对局内永久、随棋子存续、无回合递减、可叠加累积）</summary>
@@ -185,7 +205,8 @@ public class MonsoonConfig : ScriptableObject
         Range = 4     // AttackRange +N
     }
 
-    /// <summary>永久加成池条目：属性类型 + 数值（代码零硬编码，Inspector 可改可增删）</summary>
+    /// <summary>永久加成池条目：属性类型 + 数值 + 概率权重（代码零硬编码，Inspector 可改可增删）。
+    /// 权重非归一化：越大越容易抽中（按池内权重加权随机）；权重 0 = 永不抽中；全 0 = 该池无有效条目不强化</summary>
     [System.Serializable]
     public class PermanentBonusEntry
     {
@@ -193,12 +214,14 @@ public class MonsoonConfig : ScriptableObject
         public PermanentBonusType type = PermanentBonusType.Attack;
         [Tooltip("加成数值（可叠加累积）")]
         public int value = 2;
+        [Tooltip("抽中概率权重（非归一化：越大越容易抽中；0 = 永不抽中）")]
+        public float weight = 1f;
 
         public PermanentBonusEntry() { }
 
-        public PermanentBonusEntry(PermanentBonusType t, int v)
+        public PermanentBonusEntry(PermanentBonusType t, int v, float w = 1f)
         {
-            type = t; value = v;
+            type = t; value = v; weight = w;
         }
     }
 
