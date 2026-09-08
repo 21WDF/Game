@@ -38,15 +38,19 @@ public class MonsoonManager : MonoBehaviour
     private int _lastClimateRollRound = -1;   // 已判定过的轮号（每轮只判定一次；-1 = 尚未判定过任何轮）
 
     // ---- 飓风·幸运方块（三期B；「格子附着实体」基础，三期C 雷电残留复用本模式）----
-    /// <summary>棋盘上的幸运方块（运行时实体）：坐标 + 档位。双方共享可见、共同抢；拾取或飓风结束时消失</summary>
+    /// <summary>棋盘上的幸运方块（运行时实体）：坐标 + 档位 + 3D 实体引用。双方共享可见、共同抢；拾取或飓风结束时消失</summary>
     private class LuckyBox
     {
         public HexCoord coord;
-        public int tierIndex;   // 对应 Config.lootBoxTiers 下标
+        public int tierIndex;       // 对应 Config.lootBoxTiers 下标
+        public GameObject view;     // 3D 方块实体（纯渲染层；与数据同生命周期，拾取/清除时销毁）
     }
     private readonly List<LuckyBox> _luckyBoxes = new List<LuckyBox>();
+    private bool _boxPrefabMissingWarned;   // lootBoxPrefab 未配置告警只打一次（防刷屏）
+    private bool _residueMaterialMissingWarned;   // lightningResidueMaterial 未配置告警只打一次（防刷屏）
     /// <summary>本轮掉落决策（轮号守卫）：null = 本轮尚未决策；-1 = 本轮不掉；≥0 = 本轮掉落的档位下标</summary>
     private int _roundDropTier = int.MinValue;   // int.MinValue = 尚未决策（区别于 -1 不掉）
+    private int _roundDropCount;                 // 本轮随机出的每批掉落数量 N（决策点定，P1/P2 两批复用——同品质同数量平衡保底）
     private int _lastDropDecisionRound = -1;
 
     /// <summary>季风机制生效判定（内聚过滤入口）：当前城邦 == 季风之城</summary>
@@ -80,6 +84,14 @@ public class MonsoonManager : MonoBehaviour
     private void OnDestroy()
     {
         if (Instance == this) Instance = null;
+        // 泄漏兜底：管理器销毁时清掉仍存活的 3D 方块实体（不留幽灵方块）
+        foreach (var box in _luckyBoxes)
+            DestroyBoxView(box);
+        // 泄漏兜底：还原仍存活残留格的本体材质（格子可能已随场景销毁 → GetTile null 安全跳过）
+        var board = ChessBoardController.Instance;
+        if (board == null) return;
+        foreach (var residue in _residues)
+            board.GetTile(residue.coord)?.RestoreTileMaterial();
     }
 
     // ==========================================
@@ -133,6 +145,52 @@ public class MonsoonManager : MonoBehaviour
     }
 
     // ==========================================
+    //  UI 显示状态（纯只读查询 + 变化通知；只新增读取入口与通知点，不改任何机制逻辑/结算顺序）
+    // ==========================================
+    /// <summary>季风状态变化事件（UI 订阅入口，事件驱动刷新惯例）：季节/昼夜切换（轮末推进）、
+    /// 气候出现/到期（轮开始结算）后触发。非季风城邦整套钩子不运行，本事件不触发</summary>
+    public event System.Action OnMonsoonStateChanged;
+
+    /// <summary>季风状态是否应对玩家可见（内聚过滤入口）：当前城邦 == 季风之城。
+    /// UI 显隐判断用（非季风城邦下 UI 直接隐藏，不读取后续季风状态）</summary>
+    public bool IsMonsoonUIVisible => MonsoonActive;
+
+    /// <summary>当前季节名（如「春」；配置槽位异常回退「?」）。仅 IsMonsoonUIVisible 为 true 时有意义</summary>
+    public string CurrentSeasonName
+    {
+        get
+        {
+            int idx = SeasonIndex;
+            return idx >= 0 && Config.seasons != null && idx < Config.seasons.Count && Config.seasons[idx] != null
+                ? Config.seasons[idx].slotName : "?";
+        }
+    }
+
+    /// <summary>当前是否为昼（每季前 dayRoundsPerSeason 轮）。仅 IsMonsoonUIVisible 为 true 时有意义</summary>
+    public bool CurrentIsDay => IsDay;
+
+    /// <summary>活跃气候快照（UI 显示用只读数据）：名称 + 剩余持续轮数</summary>
+    public struct ClimateSnapshot
+    {
+        public string name;             // 气候名（如「暴雨」）
+        public int roundsRemaining;     // 剩余持续轮数（本轮生效中；下轮开始 -1，归零移除）
+    }
+
+    /// <summary>当前活跃气候快照列表（可同时多个，暴雨/暴雪可叠加；返回副本，内部状态不被外部改动）。
+    /// 仅 IsMonsoonUIVisible 为 true 时有意义</summary>
+    public List<ClimateSnapshot> GetActiveClimateSnapshots()
+    {
+        var result = new List<ClimateSnapshot>(_activeClimates.Count);
+        foreach (var c in _activeClimates)
+            if (c != null && c.entry != null)
+                result.Add(new ClimateSnapshot { name = c.entry.climateName, roundsRemaining = c.roundsRemaining });
+        return result;
+    }
+
+    /// <summary>状态变化通知（各状态推进点末尾调用；纯通知，无任何游戏逻辑订阅方 → 不影响既有结算流程）</summary>
+    private void RaiseStateChanged() => OnMonsoonStateChanged?.Invoke();
+
+    // ==========================================
     //  轮推进（TurnManager 在一轮完成时调用；严格按「轮」）
     // ==========================================
     /// <summary>轮结束：推进轮数并结算季节 / 昼夜切换（非季风城邦下整套不触发）</summary>
@@ -149,6 +207,9 @@ public class MonsoonManager : MonoBehaviour
 
         // 雷电残留按「轮」结算（三期C）：停留伤害 → 强度衰减/归零移除（轮号守卫每轮一次）
         TickResidues(_roundsCompleted);
+
+        // UI 通知：相位推进完成（该方回合结束效果已在 OnTurnEnded 先行结算 → 显示的即后续生效口径）
+        RaiseStateChanged();
     }
 
     // ==========================================
@@ -281,6 +342,9 @@ public class MonsoonManager : MonoBehaviour
         string summary = _activeClimates.Count == 0 ? "晴"
             : string.Join("、", _activeClimates.ConvertAll(c => $"{c.entry.climateName}（剩余 {c.roundsRemaining} 轮）"));
         Debug.Log($"[MonsoonManager] 第 {currentRound} 轮气候：{summary}");
+
+        // UI 通知：气候出现/到期已结算（本轮生效口径；到期者在上方 Tick 已移除，不会显示已到期气候）
+        RaiseStateChanged();
     }
 
     /// <summary>存活气候持续递减：每轮开始 -1，归零移除（持续期间生效，到期自然消失）。
@@ -428,14 +492,15 @@ public class MonsoonManager : MonoBehaviour
         var tiers = Config.lootBoxTiers;
         if (tiers == null || tiers.Count == 0) return;
 
-        // 一次性决策（轮号守卫）：本轮掉不掉 → 掉哪个档位（决策结果整轮生效，两批复用）
+        // 一次性决策（轮号守卫）：本轮掉不掉 → 掉哪个档位 + 每批数量 N（决策结果整轮生效，两批复用）
         if (_lastDropDecisionRound != currentRound)
         {
             _lastDropDecisionRound = currentRound;
             if (RollProbability(Config.hurricaneDropChancePerRound))
             {
                 _roundDropTier = RollTierIndex(tiers);
-                Debug.Log($"[MonsoonManager] 飓风：第 {currentRound} 轮掉落幸运方块（{tiers[_roundDropTier].tierName}档 × {Mathf.Max(1, Config.hurricaneDropCount)} 个/批，P1/P2 回合各一批）");
+                _roundDropCount = RollDropCount();   // 每轮随机一个数量 N（与档位判定同源随机入口：UnityEngine.Random）
+                Debug.Log($"[MonsoonManager] 飓风：第 {currentRound} 轮掉落幸运方块（{tiers[_roundDropTier].tierName}档 × {_roundDropCount} 个/批，P1/P2 回合各一批）");
             }
             else
             {
@@ -445,20 +510,19 @@ public class MonsoonManager : MonoBehaviour
 
         if (_roundDropTier < 0) return;   // 本轮不掉 / 决策已消费后飓风中途结束的情况由清空逻辑兜底
 
-        int count = Mathf.Max(1, Config.hurricaneDropCount);
+        int count = _roundDropCount;
         int dropped = 0;
         for (int i = 0; i < count; i++)
         {
             var coord = RollRandomEmptyCoord();
             if (coord == null) break;   // 棋盘没有空格了（全被占/全有方块）——后续也不再尝试
-            _luckyBoxes.Add(new LuckyBox { coord = coord.Value, tierIndex = _roundDropTier });
+            var box = new LuckyBox { coord = coord.Value, tierIndex = _roundDropTier };
+            _luckyBoxes.Add(box);
+            SpawnBoxView(box);   // 生成 3D 方块实体（纯渲染层；掉落/档位判定逻辑不变）
             dropped++;
         }
         if (dropped > 0)
-        {
-            ShowBoxOverlay(coord2 => true);   // 全量刷新方块高亮（简单起见整体重绘）
             Debug.Log($"[MonsoonManager] 飓风：掉落 {dropped} 个幸运方块（{tiers[_roundDropTier].tierName}档）");
-        }
     }
 
     /// <summary>按权重随机一个档位下标（权重全 0 时兜底 0）</summary>
@@ -475,6 +539,16 @@ public class MonsoonManager : MonoBehaviour
             if (roll <= 0f) return i;
         }
         return 0;
+    }
+
+    /// <summary>随机本批掉落数量 N：[hurricaneDropCountMin, hurricaneDropCountMax] 闭区间
+    ///（下限 clamp ≥1、上限低于下限时按下限计；与档位判定同源随机入口 UnityEngine.Random，
+    /// 联机换 seed 只改统一入口，不散落新随机点）</summary>
+    private int RollDropCount()
+    {
+        int min = Mathf.Max(1, Config.hurricaneDropCountMin);
+        int max = Mathf.Max(min, Config.hurricaneDropCountMax);
+        return Random.Range(min, max + 1);
     }
 
     /// <summary>随机一个空格（无棋子且无方块的格子；棋盘无空格返回 null）</summary>
@@ -501,31 +575,43 @@ public class MonsoonManager : MonoBehaviour
         return null;
     }
 
-    /// <summary>全量刷新方块战术层高亮（方块消失/新增后调用；_luckyBoxes 为空时即全部还原）</summary>
-    private void ShowBoxOverlay(System.Func<HexCoord, bool> filter = null)
+    // ---- 3D 方块实体渲染（纯渲染层：掉落/拾取/清除的数据逻辑不变；雷电残留的格子高亮是独立代码，保持不动）----
+    /// <summary>生成方块的 3D 实体：Instantiate 配置 prefab 到格子世界坐标 + lootBoxYOffset 垂直修正
+    ///（复用棋子「格子 → 世界坐标」定位口径：GetCellWorldPosition + Y 偏移，rotation 恒 identity），
+    /// 并按档位切换材质区分品质（sharedMaterial 直换引用：共享材质不产生实例副本，无泄漏）。
+    /// prefab 未配置时告警一次并跳过（数据层方块照常存在、可拾取，仅无实体显示）</summary>
+    private void SpawnBoxView(LuckyBox box)
     {
-        var board = ChessBoardController.Instance;
-        if (board == null) return;
-        var tiers = Config.lootBoxTiers;
-
-        // 先清所有现有方块高亮（重绘语义）
-        foreach (var box in _luckyBoxes)
+        var prefab = Config.lootBoxPrefab;
+        if (prefab == null)
         {
-            var tile = board.GetTile(box.coord);
-            tile?.overlay?.Hide();
-        }
-
-        if (filter != null)
-        {
-            foreach (var box in _luckyBoxes)
+            if (!_boxPrefabMissingWarned)
             {
-                if (!filter(box.coord)) continue;
-                var tile = board.GetTile(box.coord);
-                var tier = tiers != null && box.tierIndex >= 0 && box.tierIndex < tiers.Count ? tiers[box.tierIndex] : null;
-                if (tile != null && tier != null)
-                    tile.overlay?.Show(tier.color, tier.color.a);
+                _boxPrefabMissingWarned = true;
+                Debug.LogWarning("[MonsoonManager] MonsoonConfig 未配置 lootBoxPrefab，幸运方块无 3D 实体（数据层照常掉落/拾取，仅无显示）");
             }
+            return;
         }
+
+        Vector3 worldPos = ChessBoardController.Instance != null
+            ? ChessBoardController.Instance.GetCellWorldPosition(box.coord)
+            : Vector3.zero;
+        box.view = Instantiate(prefab, worldPos + Vector3.up * Config.lootBoxYOffset, Quaternion.identity);
+
+        // 按档位切换材质（prefab 内所有 Renderer 统一换：简单正方体即根上一个）
+        var tiers = Config.lootBoxTiers;
+        var tier = tiers != null && box.tierIndex >= 0 && box.tierIndex < tiers.Count ? tiers[box.tierIndex] : null;
+        if (tier != null && tier.material != null)
+            foreach (var renderer in box.view.GetComponentsInChildren<Renderer>())
+                renderer.sharedMaterial = tier.material;
+    }
+
+    /// <summary>销毁方块的 3D 实体（拾取/统一清除/管理器销毁时调用；幂等，数据层移除由调用方负责）</summary>
+    private void DestroyBoxView(LuckyBox box)
+    {
+        if (box == null) return;
+        if (box.view != null) Destroy(box.view);
+        box.view = null;
     }
 
     /// <summary>移动经过拾取 + 残留伤害（PieceManager.MovePieceAlongPath 路径遍历点调用，含起终点；落点不必是该格）：
@@ -563,7 +649,7 @@ public class MonsoonManager : MonoBehaviour
         if (tiers == null || box.tierIndex < 0 || box.tierIndex >= tiers.Count || tiers[box.tierIndex] == null) return;
         var tier = tiers[box.tierIndex];
         _luckyBoxes.Remove(box);
-        ShowBoxOverlay();   // 移除后重绘（清掉该格高亮）
+        DestroyBoxView(box);   // 拾取即销毁 3D 实体（立即消失，不留幽灵方块）
 
         string picker = piece.Data != null ? piece.Data.displayName : "棋子";
         Debug.Log($"[MonsoonManager] 飓风：{picker}（{(piece.Owner == PlayerSide.P1 ? "玩家1" : "玩家2")}）拾取幸运方块（{tier.tierName}档）");
@@ -683,9 +769,12 @@ public class MonsoonManager : MonoBehaviour
         int count = Random.Range(min, max + 1);
 
         var struckCoords = new List<HexCoord>();
-        var gameConfig = Resources.Load<GameConfig>("GameConfig");   // 残留颜色可配（与项目其他 GameConfig 消费方同口径）
-        var residueColor = gameConfig != null ? gameConfig.overlayLightningResidueColor
-            : new Color(0.75f, 0.4f, 1f, 0.55f);   // GameConfig 缺失兜底（与默认字段一致）
+        var residueMaterial = Config.lightningResidueMaterial;   // 残留格材质可配（材质化替换原半透明高亮）
+        if (residueMaterial == null && !_residueMaterialMissingWarned)
+        {
+            _residueMaterialMissingWarned = true;
+            Debug.LogWarning("[MonsoonManager] MonsoonConfig 未配置 lightningResidueMaterial，雷电残留格无材质显示（数据层照常生效，仅无显示）");
+        }
         var board = ChessBoardController.Instance;
 
         for (int i = 0; i < count; i++)
@@ -707,7 +796,7 @@ public class MonsoonManager : MonoBehaviour
                 _residues.Add(new LightningResidue { coord = coord.Value, power = initialPower });
             }
             var tile = board != null ? board.GetTile(coord.Value) : null;
-            tile?.overlay?.Show(residueColor, residueColor.a);
+            tile?.SetTileMaterial(residueMaterial);   // 格子本体切残留材质（幂等：重劈同格不覆盖已保存原材质）
 
             // 劈中棋子：扣真实伤害（环境伤害：source=null / Dot / True / 无元素——不计地下交易统计）
             var piece = PieceLayoutModel.Instance != null ? PieceLayoutModel.Instance.GetPieceAt(coord.Value) : null;
@@ -716,27 +805,46 @@ public class MonsoonManager : MonoBehaviour
             Debug.Log($"[MonsoonManager] 雷暴：{coord.Value} 雷劈命中 {piece.Data.displayName}，真实伤害 {Config.lightningStrikeDamage}");
             if (piece.IsDead) continue;   // 劈死了不给加成
 
-            // 劈中且存活：概率获得永久加成（属性池随机一条）
-            if (RollProbability(Config.lightningPermanentBonusChance))
-            {
-                var pool = Config.permanentBonusPool;
-                if (pool != null && pool.Count > 0)
-                {
-                    var entry = pool[Random.Range(0, pool.Count)];
-                    if (entry != null && entry.value != 0)
-                    {
-                        piece.AddPermanentBonus(entry.type, entry.value);
-                        string statName = entry.type == MonsoonConfig.PermanentBonusType.HP ? "生命上限"
-                            : entry.type == MonsoonConfig.PermanentBonusType.Attack ? "攻击"
-                            : entry.type == MonsoonConfig.PermanentBonusType.Defense ? "防御"
-                            : entry.type == MonsoonConfig.PermanentBonusType.Move ? "移动" : "射程";
-                        Debug.Log($"[MonsoonManager] 雷暴：{piece.Data.displayName} 获得永久加成（{statName} +{entry.value}，对局内永久可叠加）");
-                    }
-                }
-            }
+            // 劈中且存活：概率获得永久加成（默认 100%；从雷劈属性池按权重抽取，与残留池独立）
+            TryGrantPermanentBonus(piece, Config.lightningPermanentBonusChance, Config.strikePermanentBonusPool, "雷劈");
         }
         if (struckCoords.Count > 0)
             Debug.Log($"[MonsoonManager] 雷暴：第 {currentRound} 轮出现时雷劈 {struckCoords.Count} 格，各留雷电残留（初始强度 {Config.lightningResidueInitialPower}，每轮 -{Config.lightningResidueDecayPerRound}）");
+    }
+
+    /// <summary>雷暴强化判定（伤害结算后追加的纯增量层）：存活棋子按 chance 概率从指定属性池按权重
+    /// 加权随机抽一条永久加成（对局内永久、可叠加累积；接入 EffectiveAttack/EffectiveDefense/MaxHP/MoveRange/AttackRange 既有聚合点）。
+    /// 雷劈与残留各自传入独立属性池；死亡棋子不强化（IsDead 直接返回）；池全权重 0 不强化</summary>
+    private void TryGrantPermanentBonus(PieceModel piece, float chance, List<MonsoonConfig.PermanentBonusEntry> pool, string sourceLabel)
+    {
+        if (piece == null || piece.IsDead) return;   // 死亡不强化（含被伤害致死的场景——由调用点在伤害后传入）
+        if (!RollProbability(chance)) return;
+        var entry = RollWeightedBonus(pool);
+        if (entry == null || entry.value == 0) return;
+        piece.AddPermanentBonus(entry.type, entry.value);
+        string statName = entry.type == MonsoonConfig.PermanentBonusType.HP ? "生命上限"
+            : entry.type == MonsoonConfig.PermanentBonusType.Attack ? "攻击"
+            : entry.type == MonsoonConfig.PermanentBonusType.Defense ? "防御"
+            : entry.type == MonsoonConfig.PermanentBonusType.Move ? "移动" : "射程";
+        Debug.Log($"[MonsoonManager] 雷暴：{piece.Data.displayName} 受{sourceLabel}伤害后获得永久加成（{statName} +{entry.value}，对局内永久可叠加）");
+    }
+
+    /// <summary>按权重加权随机抽一条池条目（非归一化：权重越大越容易抽中；权重 0 永不抽中；
+    /// 全权重 0 / 空池返回 null 不强化。与档位/掉落判定同源随机入口 UnityEngine.Random）</summary>
+    private MonsoonConfig.PermanentBonusEntry RollWeightedBonus(List<MonsoonConfig.PermanentBonusEntry> pool)
+    {
+        if (pool == null || pool.Count == 0) return null;
+        float total = 0f;
+        foreach (var e in pool) if (e != null) total += Mathf.Max(0f, e.weight);
+        if (total <= 0f) return null;   // 全权重 0：无有效条目
+        float roll = Random.value * total;
+        for (int i = 0; i < pool.Count; i++)
+        {
+            if (pool[i] == null) continue;
+            roll -= Mathf.Max(0f, pool[i].weight);
+            if (roll <= 0f) return pool[i];
+        }
+        return null;   // 浮点边界兜底（理论不可达）
     }
 
     /// <summary>随机一个格子（无排除条件——雷劈可劈任意格，含棋子格与空格；棋盘无效返回 null）</summary>
@@ -769,6 +877,8 @@ public class MonsoonManager : MonoBehaviour
             PieceManager.Instance?.ApplyIncomingDamage(piece, residue.power, null, DamageSource.Dot, DamageKind.True, ElementType.None);
             damaged.Add(piece);
             Debug.Log($"[MonsoonManager] 雷电残留：{piece.Data.displayName} 停留受 {residue.power} 真实伤害（{residue.coord}）");
+            // 停留受伤且存活 → 残留强化判定（概率随该格当前强度线性递减；从残留属性池按权重抽取；伤害结算后纯追加层）
+            TryGrantPermanentBonus(piece, GetResidueBonusChance(residue), Config.residuePermanentBonusPool, "雷电残留·停留");
         }
         foreach (var piece in damaged)
         {
@@ -779,17 +889,28 @@ public class MonsoonManager : MonoBehaviour
             }
         }
 
-        // ② 衰减：-decay，归零移除（高亮还原）
+        // ② 衰减：-decay，归零移除（格子材质还原原状）
         for (int i = _residues.Count - 1; i >= 0; i--)
         {
             _residues[i].power -= decay;
             if (_residues[i].power <= 0)
             {
                 var tile = board != null ? board.GetTile(_residues[i].coord) : null;
-                tile?.overlay?.Hide();
+                tile?.RestoreTileMaterial();   // 还原格子本体材质（不碰 overlay——战术/悬停高亮不受影响）
                 _residues.RemoveAt(i);
             }
         }
+    }
+
+    /// <summary>残留强化概率（随强度同步线性递减）：配置值 ×（该格当前强度 / 初始残留强度）。
+    /// 强度每轮等差递减 → 概率同步等差递减，步长由「衰减量 ÷ 初始强度」自动决定（改初始强度/衰减量自动适配，零硬编码轮次）；
+    /// 每格独立按自身当前强度计算（不同轮劈出的残留概率各异）；重劈充能到满（= 初始强度）时概率同步回升到配置值。
+    /// 初始强度 ≤0 或当前强度 ≤0 时返回 0（归零残留本就该消失，防御性兜底）</summary>
+    private float GetResidueBonusChance(LightningResidue residue)
+    {
+        int initial = Mathf.Max(0, Config.lightningResidueInitialPower);
+        if (initial <= 0 || residue.power <= 0) return 0f;
+        return Config.lightningResiduePermanentBonusChance * ((float)residue.power / initial);
     }
 
     /// <summary>移动经过/到达残留格 → 受当前强度真实伤害（OnPieceMovedAlongPath 内与方块拾取并行结算）。
@@ -810,6 +931,8 @@ public class MonsoonManager : MonoBehaviour
                 PieceManager.Instance?.DestroyPiece(piece);
                 return;
             }
+            // 经过受伤且存活 → 残留强化判定（概率随该格当前强度线性递减；从残留属性池按权重抽取；伤害结算后纯追加层）
+            TryGrantPermanentBonus(piece, GetResidueBonusChance(residue), Config.residuePermanentBonusPool, "雷电残留·经过");
         }
     }
 
@@ -817,9 +940,11 @@ public class MonsoonManager : MonoBehaviour
     {
         if (_luckyBoxes.Count == 0) return;
         int count = _luckyBoxes.Count;
+        foreach (var box in _luckyBoxes)
+            DestroyBoxView(box);   // 销毁全部 3D 实体（不留幽灵方块）
         _luckyBoxes.Clear();
-        ShowBoxOverlay();   // 清空后重绘 = 全部还原
         _roundDropTier = int.MinValue;   // 决策状态复位（下次飓风重新决策）
+        _roundDropCount = 0;
         Debug.Log($"[MonsoonManager] 飓风结束：清除 {count} 个未拾取幸运方块（{reason}）");
     }
 }

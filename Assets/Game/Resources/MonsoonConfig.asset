@@ -37,20 +37,43 @@ MonoBehaviour:
   roundsPerSeason: 6
   dayRoundsPerSeason: 3
   climates:
-  - climateName: 
-    probability: 0
-    restrictedSeasonIndex: 0
-    effectKind: 0
+  - climateName: "\u66B4\u96E8"
+    probability: 0.05
+    restrictedSeasonIndex: -1
+    effectKind: 1
+    exclusive: 0
+  - climateName: "\u66B4\u96EA"
+    probability: 0.05
+    restrictedSeasonIndex: 3
+    effectKind: 2
+    exclusive: 0
+  - climateName: "\u9AD8\u6E29"
+    probability: 0.05
+    restrictedSeasonIndex: 1
+    effectKind: 3
+    exclusive: 1
+  - climateName: "\u98D3\u98CE"
+    probability: 1
+    restrictedSeasonIndex: -1
+    effectKind: 4
+    exclusive: 0
+  - climateName: "\u96F7\u66B4"
+    probability: 0.05
+    restrictedSeasonIndex: -1
+    effectKind: 5
     exclusive: 0
   climateDurationMinRounds: 1
   climateDurationMaxRounds: 3
   rainAttackRangePenalty: 1
   blizzardKnockbackDistance: 1
   hurricaneDropChancePerRound: 0.5
-  hurricaneDropCount: 2
+  hurricaneDropCountMin: 3
+  hurricaneDropCountMax: 4
+  lootBoxPrefab: {fileID: 1032699301157789373, guid: cdfe3b23570452e43b795a6b8315e5d6, type: 3}
+  lootBoxYOffset: 0.38
   lootBoxTiers:
   - tierName: "\u8D85\u9AD8"
-    color: {r: 1, g: 0.25, b: 0.25, a: 0.85}
+    material: {fileID: 2100000, guid: 26b98fd89a6a49a4dad2cfa6ad6f6171, type: 2}
     weight: 0.05
     includeNormalEquipment: 1
     equipmentTier: 2
@@ -59,7 +82,7 @@ MonoBehaviour:
     goldMin: 100
     goldMax: 150
   - tierName: "\u9AD8"
-    color: {r: 1, g: 0.85, b: 0.2, a: 0.85}
+    material: {fileID: 2100000, guid: ef79fff46e4433e46bbff1de93555131, type: 2}
     weight: 0.15
     includeNormalEquipment: 1
     equipmentTier: 1
@@ -68,7 +91,7 @@ MonoBehaviour:
     goldMin: 20
     goldMax: 60
   - tierName: "\u4E2D"
-    color: {r: 0.25, g: 0.55, b: 1, a: 0.85}
+    material: {fileID: 2100000, guid: 8ffdb4dd0e45bc8479c5744bebfd015a, type: 2}
     weight: 0.3
     includeNormalEquipment: 1
     equipmentTier: 0
@@ -77,7 +100,7 @@ MonoBehaviour:
     goldMin: 10
     goldMax: 20
   - tierName: "\u4F4E"
-    color: {r: 0.6, g: 0.6, b: 0.6, a: 0.85}
+    material: {fileID: 2100000, guid: d0f8cc287e953cc4aa6f03c74f4aceb1, type: 2}
     weight: 0.5
     includeNormalEquipment: 0
     equipmentTier: 0
@@ -89,6 +112,7 @@ MonoBehaviour:
   lightningStrikeMaxCount: 4
   lightningStrikeDamage: 20
   lightningResidueInitialPower: 8
+  lightningResidueMaterial: {fileID: 0}
   lightningResidueDecayPerRound: 2
   lightningPermanentBonusChance: 0.4
   permanentBonusPool:
@@ -97,7 +121,7 @@ MonoBehaviour:
   - type: 1
     value: 2
   - type: 2
-    value: 2
+    value: 1
   - type: 3
     value: 1
   - type: 4
