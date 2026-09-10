@@ -131,6 +131,10 @@ public class DebugManager : MonoBehaviour
         {
             CityStateManager.Instance.SetCityState(debugCityState);
             Debug.Log($"[DebugManager] 调试指定本局城邦：{debugCityState}");
+
+            // 战争之城·棋盘扩展（与正式流程 OnCityStateRevealConfirmed 同口径：城邦确定后、
+            // 摆棋前一次性扩展；非战争城邦/已扩展由 WarCityManager 内聚跳过，纯通知无副作用）
+            WarCityManager.Instance?.ExpandBoard();
         }
 
         // 3) 摆棋：P1 半场 r>=0，P2 半场 r<0
@@ -167,10 +171,27 @@ public class DebugManager : MonoBehaviour
         var p1Coords = CollectHalfCoords(board, p1: true, p1Ids.Count);
         var p2Coords = CollectHalfCoords(board, p1: false, p2Ids.Count);
 
+        // 摆棋并捕获每方第一个生成的棋子（p1Ids[0] / p2Ids[0] 对应主将；生成失败为 null，静默跳过登记）
+        PieceModel p1First = null, p2First = null;
         for (int i = 0; i < p1Ids.Count && i < p1Coords.Count; i++)
-            pm.SpawnPieceById(p1Ids[i], p1Coords[i], PlayerSide.P1);
+        {
+            var spawned = pm.SpawnPieceById(p1Ids[i], p1Coords[i], PlayerSide.P1);
+            if (i == 0) p1First = spawned;
+        }
         for (int i = 0; i < p2Ids.Count && i < p2Coords.Count; i++)
-            pm.SpawnPieceById(p2Ids[i], p2Coords[i], PlayerSide.P2);
+        {
+            var spawned = pm.SpawnPieceById(p2Ids[i], p2Coords[i], PlayerSide.P2);
+            if (i == 0) p2First = spawned;
+        }
+
+        // 战争城邦·主将登记（纯通知：仅调 WarCityManager 公开登记接口，由其内部过滤——
+        // 非战争城邦 / 已有主将均返回 false 无副作用；DebugManager 不判断城邦类型；
+        // WarCityManager 未挂载或棋子为空时静默跳过，不影响摆棋与对战启动）
+        if (WarCityManager.Instance != null)
+        {
+            if (p1First != null) WarCityManager.Instance.OnPieceDeployed(PlayerSide.P1, p1First);
+            if (p2First != null) WarCityManager.Instance.OnPieceDeployed(PlayerSide.P2, p2First);
+        }
 
         return true;
     }

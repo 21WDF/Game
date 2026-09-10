@@ -110,6 +110,19 @@ public class BattleController : MonoBehaviour
         // 占据权威在 PieceLayoutModel
         var piece = PieceLayoutModel.Instance?.GetPieceAt(clickedTile.Coord);
 
+        // ---- 战争之城·主将调换（情况 1 之前拦截）：已选中棋子时点击己方棋子 → 尝试调换 ----
+        // 全部条件判断内聚 WarCityManager.TrySwapPosition（选中者非主将 / 目标非己方 / 超距 /
+        // 已锁定 / AP 不足等均返回 false → 自然落入情况 1 走原有「重新选中」逻辑，行为不变）
+        if (piece != null && piece.Owner == TurnManager.Instance.ActivePlayer
+            && _model.SelectedPiece != null
+            && WarCityManager.Instance != null
+            && WarCityManager.Instance.TrySwapPosition(_model.SelectedPiece, piece))
+        {
+            _waypoints.Clear();       // 调换后位置变化，途经点失效
+            RefreshAfterAction();     // 重算选中范围（与 HandleMove 尾部同口径）
+            return;
+        }
+
         // ---- 情况 1：点击的是己方棋子 → 选中（召唤物如傀儡不可选中/操作，落入后续分支取消）----
         if (piece != null && piece.Owner == TurnManager.Instance.ActivePlayer
             && !(piece.Data != null && piece.Data.isSummon))
@@ -235,6 +248,27 @@ public class BattleController : MonoBehaviour
                     // 途经点显示绿色，不作为移动目标（排除避免 Move|Waypoint 冲突）
                     if (_waypoints.Contains(coord)) continue;
                     newHighlights[coord] = HighlightType.Move;
+                }
+
+                // 战争之城·主将调换目标高亮：移动距离内的己方棋子所在格补进移动高亮
+                //（被棋子占据的格寻路不可达，原高亮看不到可调换对象）。口径与 TrySwapPosition
+                // 判定完全一致：以主将当前位置为圆心、六边形距离 ≤ 主将移动距离（非寻路口径）；
+                // 排除主将自身格与召唤物格（均不可调换）。判断内聚 WarCityManager.IsGeneral，
+                // 非主将/非战争城邦不进入本段。空格高亮上面照旧输出，一格都不少
+                if (WarCityManager.Instance != null && WarCityManager.Instance.IsGeneral(piece))
+                {
+                    int range = piece.MoveRange;
+                    foreach (var offset in HexCoord.AllCoordsInRadius(range))
+                    {
+                        var coord = new HexCoord(piece.Coord.q + offset.q, piece.Coord.r + offset.r);
+                        if (coord == piece.Coord) continue;   // 主将自身格不高亮
+                        var occupant = PieceLayoutModel.Instance?.GetPieceAt(coord);
+                        // 仅己方非召唤物棋子格；途经点格跳过（保持绿色语义不被覆盖）
+                        if (occupant == null || occupant.Owner != piece.Owner
+                            || occupant.Data == null || occupant.Data.isSummon) continue;
+                        if (_waypoints.Contains(coord)) continue;
+                        newHighlights[coord] = HighlightType.Move;
+                    }
                 }
             }
 
@@ -423,6 +457,15 @@ public class BattleController : MonoBehaviour
         if (MonsoonManager.Instance != null && MonsoonManager.Instance.IsMoveBlockedByHeat(piece))
         {
             Debug.Log("[BattleController] 高温锁定：该棋子本回合已行动，不能再移动");
+            DeselectPiece();
+            return;
+        }
+
+        // 战争之城·主将调换锁定：本回合已调换的主将不能再移动（判断内聚 WarCityManager，
+        // 非战争城邦/非主将恒 false；先于 AP/免AP 检查——锁定优先，免 AP 移动也不解锁）
+        if (WarCityManager.Instance != null && WarCityManager.Instance.IsMoveLocked(piece))
+        {
+            Debug.Log("[BattleController] 主将本回合已调换，不能再移动");
             DeselectPiece();
             return;
         }

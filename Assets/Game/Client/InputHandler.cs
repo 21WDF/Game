@@ -247,7 +247,11 @@ public class InputHandler : MonoBehaviour
     }
 
     /// <summary>鼠标是否悬停在带 UIPanelRaycastBlocker 标记的面板上（阻挡棋盘点击/悬停穿透）。
-    /// 只检测面板类 UI，纯显示 UI（血量/回合等，无标记）不遮挡。</summary>
+    /// 只检测面板类 UI，纯显示 UI（血量/回合等，无标记）不遮挡。
+    /// 公开静态接口（OrbitCameraController 复用同一守卫——面板上滚轮/转向不扰动视角），判断行为与点击守卫完全一致</summary>
+    public static bool IsPointerOverPanel() => IsPointerOverUI();
+
+    /// <summary>面板检测实现（IsPointerOverPanel 的私有实现，行为不变）</summary>
     private static bool IsPointerOverUI()
     {
         var es = EventSystem.current;

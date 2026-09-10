@@ -31,7 +31,25 @@ public class TradeCityManager : MonoBehaviour
     /// <summary>经济数据模型（UI 通过此订阅 OnReputationChanged 事件）</summary>
     public TradeCityModel Model => _model;
 
-    private GameConfig _config;
+    [Header("配置资产（空则读 Resources/TradeConfig，再空则用运行时默认值）")]
+    [Tooltip("Create > Chess > Trade Config 创建后拖入；改数值无需改代码")]
+    public TradeConfig config;
+
+    private TradeConfig _runtimeConfig;
+
+    /// <summary>生效配置（懒加载：Inspector → Resources → 运行时默认实例）</summary>
+    private TradeConfig Config
+    {
+        get
+        {
+            if (_runtimeConfig == null)
+            {
+                _runtimeConfig = config != null ? config
+                    : (Resources.Load<TradeConfig>("TradeConfig") ?? ScriptableObject.CreateInstance<TradeConfig>());
+            }
+            return _runtimeConfig;
+        }
+    }
 
     /// <summary>贸易机制生效判定（内聚过滤，不散落到调用点）：仅当前城邦 == 贸易之城时生效；
     /// 其他城邦下整套路径不触发、查询接口退回基线（原价 / 无拍卖门槛 / 满信誉）</summary>
@@ -58,9 +76,6 @@ public class TradeCityManager : MonoBehaviour
         }
         Instance = this;
         _model = new TradeCityModel();
-        _config = Resources.Load<GameConfig>("GameConfig");
-        if (_config == null)
-            Debug.LogError("[TradeCityManager] GameConfig 加载失败！请确保 Assets/Game/Resources/GameConfig.asset 存在。", this);
     }
 
     private void Start()
@@ -103,11 +118,11 @@ public class TradeCityManager : MonoBehaviour
             }
 
             _model.IncrementDebtTurns(side);
-            int tick = _config != null ? _config.debtCreditTickTurns : 8;
+            int tick = Config.debtCreditTickTurns;
             if (_model.GetDebtTurns(side) < tick) continue;
 
             // 满 N 回合扣一次：floor(欠钱数 / 利息结算间隔)；欠 <10 扣 0（计数仍归零续计）
-            int interval = _config != null ? _config.interestGoldInterval : 10;
+            int interval = Config.interestGoldInterval;
             int deduction = -gold / interval;   // gold < 0，向下取整用整数除法（欠 11 → 1，欠 39 → 3）
             _model.ResetDebtTurns(side);        // 扣完计数归零；继续欠钱再满 N 回合会再扣一次
             if (deduction > 0)
@@ -126,7 +141,7 @@ public class TradeCityManager : MonoBehaviour
         if (_model == null || GoldManager.Instance == null) return;
         if (!TradeActive) return;   // 城邦过滤：非贸易城邦下利息/信誉恢复整套不触发
 
-        int interval = _config != null ? _config.interestGoldInterval : 10;
+        int interval = Config.interestGoldInterval;
         if (interval <= 0) interval = 10;
 
         foreach (PlayerSide side in System.Enum.GetValues(typeof(PlayerSide)))
@@ -162,7 +177,7 @@ public class TradeCityManager : MonoBehaviour
     public int GetAdjustedPrice(PlayerSide side, int basePrice)
     {
         if (_model == null || !TradeActive) return basePrice;
-        int percent = _config != null ? _config.shopPricePercentPerReputation : 10;
+        int percent = Config.shopPricePercentPerReputation;
         int lost = TradeCityModel.MaxReputation - _model.GetReputation(side);
         if (lost <= 0 || percent <= 0) return basePrice;
         return basePrice * (100 + lost * percent) / 100;   // 整数运算天然向下取整（13×1.2 → 15）
@@ -172,7 +187,7 @@ public class TradeCityManager : MonoBehaviour
     public int GetPricePercent(PlayerSide side)
     {
         if (_model == null || !TradeActive) return 0;
-        int percent = _config != null ? _config.shopPricePercentPerReputation : 10;
+        int percent = Config.shopPricePercentPerReputation;
         return (TradeCityModel.MaxReputation - _model.GetReputation(side)) * percent;
     }
 
@@ -181,7 +196,7 @@ public class TradeCityManager : MonoBehaviour
     public bool CanBidAuction(PlayerSide side)
     {
         if (!TradeActive) return true;
-        int threshold = _config != null ? _config.auctionReputationThreshold : 6;
+        int threshold = Config.auctionReputationThreshold;
         return GetReputation(side) >= threshold;
     }
 }

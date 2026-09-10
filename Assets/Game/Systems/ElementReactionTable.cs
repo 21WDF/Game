@@ -24,11 +24,10 @@ using UnityEngine;
 /// </summary>
 public static class ElementReactionTable
 {
-    /// <summary>元素系统生效判定（元素系统本体的城邦过滤，内聚在核心入口）：
-    /// 仅当前城邦 == 元素城邦时元素系统生效；其他城邦下不反应、不附着（退回「无元素」基线）。
+    /// <summary>元素系统生效判定（元素系统本体的城邦过滤；判定收敛到 ElementCityManager 统一入口）：
+    /// 仅当前城邦 == 元素之城时元素系统生效；其他城邦下不反应、不附着（退回「无元素」基线）。
     /// 消费方：GetReaction / ResolveElementInteraction / ElementColorMapper / UI 元素图标。</summary>
-    public static bool ElementSystemActive
-        => CityStateManager.Instance != null && CityStateManager.Instance.IsActive(CityStateKind.Element);
+    public static bool ElementSystemActive => ElementCityManager.ElementSystemActive;
 
     /// <summary>反应配置（描述一次元素反应的数值效果）</summary>
     [System.Serializable]

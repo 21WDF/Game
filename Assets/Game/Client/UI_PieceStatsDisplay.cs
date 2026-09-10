@@ -38,6 +38,16 @@ public class UI_PieceStatsDisplay : MonoBehaviour
     [Tooltip("数值相对棋子投影点的偏移（Canvas 局部单位 = 参考分辨率像素，随 Canvas 统一缩放，分辨率无关）。")]
     public Vector2 screenOffset = new Vector2(0f, -30f);
 
+    [Header("距离自适应缩放（轨道相机拉近拉远时面板近大远小）")]
+    [Tooltip("启用：面板随棋子与相机的距离等比缩放（近大远小，与棋子透视视觉大小协调）。关闭则恒为预制体原始大小。")]
+    public bool distanceScaleEnabled = true;
+    [Tooltip("参考距离（世界单位）：棋子处于该距离时面板为原始大小（缩放 = 1）。")]
+    public float scaleReferenceDistance = 15f;
+    [Tooltip("缩放下限：最远时面板最小缩到该比例（避免小到看不清）。")]
+    [Range(0.1f, 1f)] public float scaleMin = 0.5f;
+    [Tooltip("缩放上限：最近时面板最大放大到该比例（避免铺满屏幕）。")]
+    [Range(1f, 3f)] public float scaleMax = 1.5f;
+
     [Header("对象池")]
     [Tooltip("对象池预分配容量（首次 Get 时按需创建，最多缓存到 maxSize）。")]
     public int defaultCapacity = 8;
@@ -183,7 +193,36 @@ public class UI_PieceStatsDisplay : MonoBehaviour
         localPos += screenOffset;
         el.Rect.anchoredPosition = localPos;
 
+        // 距离自适应缩放（轨道相机适配）：缩放 ∝ 参考距离/视线深度（透视屏幕大小 ∝ 1/深度），
+        // 近大远小、每个棋子按各自距离独立适配；clamp 到上下限（最远不小到看不清、最近不铺满屏）。
+        // 只改 localScale（等比，预制体内部字号/图标/间距随整体缩放不形变），不改位置计算
+        if (distanceScaleEnabled)
+        {
+            float depth = Vector3.Dot(piece.View.transform.position - _cam.transform.position,
+                                       _cam.transform.forward);
+            float s = depth > 0.01f
+                ? Mathf.Clamp(scaleReferenceDistance / depth, scaleMin, scaleMax)
+                : 1f;
+            el.Rect.localScale = new Vector3(s, s, 1f);
+        }
+        else if (el.Rect.localScale != Vector3.one)
+        {
+            el.Rect.localScale = Vector3.one;   // 关闭开关后复位（池化元素可能残留旧缩放）
+        }
+
         // ===== 属性数值（仅在变化时更新，避免每帧字符串分配）=====
+
+        // 战争之城·主将标记（皇冠图标等；判断内聚 WarCityManager——非战争城邦恒 false 隐藏。
+        // 引用未拖入时静默跳过；仅在变化时更新 SetActive）
+        if (el.generalMark != null)
+        {
+            bool isGeneral = WarCityManager.Instance != null && WarCityManager.Instance.IsGeneral(piece);
+            if (el.lastIsGeneral != isGeneral)
+            {
+                el.generalMark.SetActive(isGeneral);
+                el.lastIsGeneral = isGeneral;
+            }
+        }
 
         // 攻击力（现有）
         int atk = piece.EffectiveAttack;
