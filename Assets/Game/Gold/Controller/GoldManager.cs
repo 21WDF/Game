@@ -20,6 +20,22 @@ public class GoldManager : MonoBehaviour
     /// <summary>金币数据模型（UI 通过此订阅事件）</summary>
     public GoldModel Model => _model;
 
+    private TradeConfig _tradeConfig;
+    /// <summary>贸易配置（透支下限；懒加载：Resources → 运行时默认实例，默认值与原 GameConfig 取值一致。
+    /// 资产由用户创建：Create > Chess > Trade Config → Assets/Game/Resources/TradeConfig）</summary>
+    private TradeConfig TradeConfig
+    {
+        get
+        {
+            if (_tradeConfig == null)
+            {
+                _tradeConfig = Resources.Load<TradeConfig>("TradeConfig")
+                               ?? ScriptableObject.CreateInstance<TradeConfig>();
+            }
+            return _tradeConfig;
+        }
+    }
+
     // ---- 单例 ----
     // GameConfig 在 Awake 加载；Model 构造放在 Start（确保单例就绪顺序）。
     private void Awake()
@@ -49,7 +65,7 @@ public class GoldManager : MonoBehaviour
             GoldPerDamage = _config.goldPerDamage,
             GoldPerDamageReceived = _config.goldPerDamageReceived,
             StartingGold = _config.startingGold,
-            OverdraftFloor = _config.overdraftFloor   // 透支下限（贸易之城·一期，可配置防硬编码）
+            OverdraftFloor = TradeConfig.overdraftFloor   // 透支下限（贸易之城·一期，可配置防硬编码；已迁至 TradeConfig）
         };
         _model.InitGold(PlayerSide.P1, _config.startingGold);
         _model.InitGold(PlayerSide.P2, _config.startingGold);

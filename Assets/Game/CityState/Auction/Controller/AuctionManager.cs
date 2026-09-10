@@ -29,8 +29,27 @@ public class AuctionManager : MonoBehaviour
     private readonly List<AuctionLot> _lots = new();
     private readonly HashSet<AuctionItemData> _sold = new();   // 已售物品集合（刷新时不重复添加）
     private int _turnsSinceRefresh;                            // 距上次刷新经过的回合数
-    private GameConfig _config;
     private bool _initialSpawnDone;                            // 初始拍品是否已投放（等城邦确定为贸易后投）
+
+    [Header("配置资产（空则读 Resources/TradeConfig，再空则用运行时默认值）")]
+    [Tooltip("Create > Chess > Trade Config 创建后拖入；改数值无需改代码")]
+    public TradeConfig config;
+
+    private TradeConfig _runtimeConfig;
+
+    /// <summary>生效配置（懒加载：Inspector → Resources → 运行时默认实例）</summary>
+    private TradeConfig Config
+    {
+        get
+        {
+            if (_runtimeConfig == null)
+            {
+                _runtimeConfig = config != null ? config
+                    : (Resources.Load<TradeConfig>("TradeConfig") ?? ScriptableObject.CreateInstance<TradeConfig>());
+            }
+            return _runtimeConfig;
+        }
+    }
 
     /// <summary>拍卖机制生效判定（内聚过滤）：仅当前城邦 == 贸易之城时生效；
     /// 非贸易城邦下不出价、不倒计时、不刷新、不投放初始拍品（无任何日志）</summary>
@@ -53,9 +72,6 @@ public class AuctionManager : MonoBehaviour
             return;
         }
         Instance = this;
-        _config = Resources.Load<GameConfig>("GameConfig");
-        if (_config == null)
-            Debug.LogError("[AuctionManager] GameConfig 加载失败！请确保 Assets/Game/Resources/GameConfig.asset 存在。", this);
     }
 
     private void Start()
@@ -126,7 +142,7 @@ public class AuctionManager : MonoBehaviour
 
         lot.CurrentBid = amount;
         lot.Bidder = side;
-        lot.CountdownRemaining = _config != null ? _config.auctionDealCountdownTurns : 6;
+        lot.CountdownRemaining = Config.auctionDealCountdownTurns;
         Debug.Log($"[AuctionManager] {side} 对 {GetDisplayName(lot.Data)} 出价 {amount}（倒计时 {lot.CountdownRemaining} 回合）");
         OnAuctionChanged?.Invoke();
         return true;
@@ -153,7 +169,7 @@ public class AuctionManager : MonoBehaviour
         }
 
         // 刷新：每 N 回合补充 1 件新拍品（未售且未在拍）
-        int interval = _config != null ? _config.auctionRefreshIntervalTurns : 5;
+        int interval = Config.auctionRefreshIntervalTurns;
         if (interval > 0 && ++_turnsSinceRefresh >= interval)
         {
             _turnsSinceRefresh = 0;

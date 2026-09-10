@@ -66,6 +66,10 @@ public class UI_StatElement : MonoBehaviour
     [Tooltip("单个状态图标 Prefab（只含 Image）")]
     public GameObject statusIconPrefab;
 
+    [Header("新增：战争之城·主将标记")]
+    [Tooltip("主将标记（皇冠图标等；主将棋子显示、非主将隐藏。战争之城机制由 WarCityManager 判断，未拖入时静默跳过）")]
+    public GameObject generalMark;
+
     private RectTransform _rect;
     /// <summary>缓存根 RectTransform（池化复用时避免重复 GetComponent）</summary>
     public RectTransform Rect => _rect ??= (RectTransform)transform;
@@ -91,6 +95,8 @@ public class UI_StatElement : MonoBehaviour
 
     [System.NonSerialized] public int lastStatusHash;
 
+    [System.NonSerialized] public bool lastIsGeneral = true;   // 主将标记缓存（true 起步 → 池复用时强制刷一次显隐）
+
     /// <summary>对象池 Get 时调用：重置所有缓存，强制下一帧全量刷新。</summary>
     public void ResetCache()
     {
@@ -106,5 +112,6 @@ public class UI_StatElement : MonoBehaviour
         lastAffixedGauge = -1;
         lastShieldStacks = -1;
         lastStatusHash = 0;
+        lastIsGeneral = true;
     }
 }

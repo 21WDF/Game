@@ -36,23 +36,26 @@ public class PieceModel
     // ---- 便捷属性（含装备加成；减法公式用）----
     // 季风之城（夏·攻击聚合）：查询式聚合，生效判断内聚在 MonsoonManager（非季风城邦返回 0）
     // 永久加成（季风·雷暴三期C）：对局内永久、可叠加累积、无回合递减；只新增求和项，不改现有计算逻辑
-    public int EffectiveAttack => Data != null ? Data.attack + EquipmentAttack + GetTotalKillAttackBonus() + GetTempBuffTotal("Attack") + GetAuraBonus("Attack") + (MonsoonManager.Instance != null ? MonsoonManager.Instance.GetAttackBonus() : 0) + PermanentAttackBonus : 0;
-    public int EffectiveDefense => Data != null ? Data.defense + EquipmentDefense - CurrentDefenseReduction - PassiveDefenseReduction + TemporaryDefenseBonus + GetTotalStoneSkinDefense() + GetTempBuffTotal("Defense") + GetAuraBonus("Defense") + PermanentDefenseBonus : 0;
-    public int MaxHP => Data != null ? Data.maxHP + EquipmentHP + PermanentHPBonus : 0;
+    // 战争之城·主将加成：主将四维加成 + 装备实际提供项的额外加成（判断内聚 WarCityManager，非战争城邦/非主将返回 0）
+    public int EffectiveAttack => Data != null ? Data.attack + EquipmentAttack + GetTotalKillAttackBonus() + GetTempBuffTotal("Attack") + GetAuraBonus("Attack") + (MonsoonManager.Instance != null ? MonsoonManager.Instance.GetAttackBonus() : 0) + PermanentAttackBonus + (WarCityManager.Instance != null ? WarCityManager.Instance.GetGeneralAttackBonus(this) + WarCityManager.Instance.GetGeneralEquipBonus(this, EquipmentAttack) : 0) : 0;
+    public int EffectiveDefense => Data != null ? Data.defense + EquipmentDefense - CurrentDefenseReduction - PassiveDefenseReduction + TemporaryDefenseBonus + GetTotalStoneSkinDefense() + GetTempBuffTotal("Defense") + GetAuraBonus("Defense") + PermanentDefenseBonus + (WarCityManager.Instance != null ? WarCityManager.Instance.GetGeneralDefenseBonus(this) + WarCityManager.Instance.GetGeneralEquipBonus(this, EquipmentDefense) : 0) : 0;
+    public int MaxHP => Data != null ? Data.maxHP + EquipmentHP + PermanentHPBonus + (WarCityManager.Instance != null ? WarCityManager.Instance.GetGeneralHPBonus(this) + WarCityManager.Instance.GetGeneralEquipBonus(this, EquipmentHP) : 0) : 0;
 
     /// <summary>有效移动范围（内联 moveConfig.baseRange + 装备加成）。
     /// 季风之城（昼夜修正）：昼 +1 / 夜 -1，最终 clamp 下限 1（夜至少可行动 1 格）；
     /// 生效判断与 clamp 内聚在 MonsoonManager（非季风城邦原样返回，行为不变）。
-    /// 永久加成（雷暴三期C）：+PermanentMoveBonus 求和项</summary>
+    /// 永久加成（雷暴三期C）：+PermanentMoveBonus 求和项。
+    /// 战争之城·主将：+主将移动加成 + 装备实际提供移动时的额外加成（内聚 WarCityManager）</summary>
     public int MoveRange => Data != null
-        ? (MonsoonManager.Instance != null ? MonsoonManager.Instance.GetMoveRange(Data.moveConfig.baseRange + EquipmentMoveRange + PermanentMoveBonus) : Data.moveConfig.baseRange + EquipmentMoveRange + PermanentMoveBonus)
+        ? (MonsoonManager.Instance != null ? MonsoonManager.Instance.GetMoveRange(Data.moveConfig.baseRange + EquipmentMoveRange + PermanentMoveBonus + (WarCityManager.Instance != null ? WarCityManager.Instance.GetGeneralMoveBonus(this) + WarCityManager.Instance.GetGeneralEquipBonus(this, EquipmentMoveRange) : 0)) : Data.moveConfig.baseRange + EquipmentMoveRange + PermanentMoveBonus + (WarCityManager.Instance != null ? WarCityManager.Instance.GetGeneralMoveBonus(this) + WarCityManager.Instance.GetGeneralEquipBonus(this, EquipmentMoveRange) : 0))
         : 0;
 
     /// <summary>有效攻击范围（内联 attackConfig.baseRange + 装备加成）。
     /// 季风之城（暴雨）：上回合受击的棋子 -N（下限 1）；生效判断与 clamp 内聚在 MonsoonManager
-    ///（非季风城邦/未受击原样返回，行为不变）。永久加成（雷暴三期C）：+PermanentAttackRangeBonus 求和项</summary>
+    ///（非季风城邦/未受击原样返回，行为不变）。永久加成（雷暴三期C）：+PermanentAttackRangeBonus 求和项。
+    /// 战争之城·主将：+装备实际提供射程时的额外加成（主将基础四维无射程；内聚 WarCityManager）</summary>
     public int AttackRange => Data != null
-        ? (MonsoonManager.Instance != null ? MonsoonManager.Instance.GetAttackRange(this, Data.attackConfig.baseRange + EquipmentAttackRange + PermanentAttackRangeBonus) : Data.attackConfig.baseRange + EquipmentAttackRange + PermanentAttackRangeBonus)
+        ? (MonsoonManager.Instance != null ? MonsoonManager.Instance.GetAttackRange(this, Data.attackConfig.baseRange + EquipmentAttackRange + PermanentAttackRangeBonus + (WarCityManager.Instance != null ? WarCityManager.Instance.GetGeneralEquipBonus(this, EquipmentAttackRange) : 0)) : Data.attackConfig.baseRange + EquipmentAttackRange + PermanentAttackRangeBonus + (WarCityManager.Instance != null ? WarCityManager.Instance.GetGeneralEquipBonus(this, EquipmentAttackRange) : 0))
         : 0;
 
     // ---- 对局内永久属性加成（季风·雷暴三期C：雷劈概率获得；随棋子存续、无回合递减、可叠加累积）----
@@ -173,19 +176,10 @@ public class PieceModel
     }
 
     // ---- 护盾元素染色（元素城邦二期；生效条件 = master 总闸开 且 当前城邦 == 元素城邦）----
-    /// <summary>染色机制是否生效：shieldElementDyeingEnabled 为 master 总闸（保留序列化字段不删），
-    /// 叠加「当前城邦 == 元素城邦」过滤——非元素城邦下不染色、不封印（护盾退回普通层数护盾）。
+    /// <summary>染色机制是否生效（判定收敛到 ElementCityManager 统一入口：总闸开 且 当前城邦 == 元素城邦，
+    /// 两个条件语义不变；总闸取值改读 ElementCityConfig——非元素城邦下不染色、不封印（护盾退回普通层数护盾）。
     /// 护盾基座（层数/拦截/吸血金币拦截/UI）不受此开关影响。</summary>
-    private static bool DyeingActive
-    {
-        get
-        {
-            var config = Resources.Load<GameConfig>("GameConfig");
-            if (config == null || !config.shieldElementDyeingEnabled) return false;
-            var city = CityStateManager.Instance;
-            return city != null && city.IsActive(CityStateKind.Element);
-        }
-    }
+    private static bool DyeingActive => ElementCityManager.DyeingActive;
 
     /// <summary>封印判定（查询，不改状态）：染色生效时，已染色护盾对「同元素」附着封印——
     /// 该元素无法再附着到本棋子（其他元素照常）。染色未生效/未染色/无盾 → 永不封印。

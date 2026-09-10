@@ -107,6 +107,15 @@ public class TurnModel
         return false;
     }
 
+    /// <summary>强制判负入口（战争之城·主将双判负等即时结束场景）：指定方判负、对方获胜。
+    /// 幂等（已结束直接跳过）；与 CheckGameOver 共用 IsGameOver/OnGameOver 结束管线</summary>
+    public void Forfeit(PlayerSide loser)
+    {
+        if (IsGameOver) return;
+        IsGameOver = true;
+        OnGameOver?.Invoke(loser == PlayerSide.P1 ? PlayerSide.P2 : PlayerSide.P1);
+    }
+
     /// <summary>该方是否存在非召唤物的存活棋子（胜负判定口径）</summary>
     private static bool HasRealPieces(List<PieceModel> pieces)
     {

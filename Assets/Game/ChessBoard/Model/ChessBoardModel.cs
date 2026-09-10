@@ -47,6 +47,10 @@ public class ChessBoardModel
     /// <summary>坐标是否在棋盘内</summary>
     public bool Contains(HexCoord coord) => _coords.Contains(coord);
 
+    /// <summary>半径同步（棋盘整体扩展后由外部调用；只改半径记录，不动坐标集合）。
+    /// AddCoord/RemoveCoord 不自动维护半径（单格增删不改变整体半径语义）</summary>
+    public void SetRadius(int radius) => Radius = radius;
+
     // ==========================================
     //  单格增删（棋盘道具系统：扩展石 / 删除石）
     //  注意：_coords 与 _coordList 必须同步维护。

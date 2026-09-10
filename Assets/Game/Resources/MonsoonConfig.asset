@@ -53,12 +53,12 @@ MonoBehaviour:
     effectKind: 3
     exclusive: 1
   - climateName: "\u98D3\u98CE"
-    probability: 1
+    probability: 0.163
     restrictedSeasonIndex: -1
     effectKind: 4
     exclusive: 0
   - climateName: "\u96F7\u66B4"
-    probability: 0.05
+    probability: 0.168
     restrictedSeasonIndex: -1
     effectKind: 5
     exclusive: 0
@@ -112,17 +112,39 @@ MonoBehaviour:
   lightningStrikeMaxCount: 4
   lightningStrikeDamage: 20
   lightningResidueInitialPower: 8
-  lightningResidueMaterial: {fileID: 0}
+  lightningResidueMaterial: {fileID: 2100000, guid: 927da1a60186ed241a5216361b75b043, type: 2}
   lightningResidueDecayPerRound: 2
-  lightningPermanentBonusChance: 0.4
-  permanentBonusPool:
+  lightningPermanentBonusChance: 1
+  lightningResiduePermanentBonusChance: 0.6
+  strikePermanentBonusPool:
   - type: 0
-    value: 2
+    value: 10
+    weight: 4
   - type: 1
-    value: 2
+    value: 10
+    weight: 3
   - type: 2
-    value: 1
+    value: 5
+    weight: 3
   - type: 3
     value: 1
+    weight: 1
   - type: 4
     value: 1
+    weight: 1
+  residuePermanentBonusPool:
+  - type: 0
+    value: 4
+    weight: 6
+  - type: 1
+    value: 4
+    weight: 4
+  - type: 2
+    value: 2
+    weight: 4
+  - type: 3
+    value: 1
+    weight: 1
+  - type: 4
+    value: 1
+    weight: 1

@@ -33,7 +33,25 @@ public class UndergroundTradeManager : MonoBehaviour
     /// <summary>地下交易数据模型（UI 通过此订阅 OnStateChanged 事件）</summary>
     public UndergroundTradeModel Model => _model;
 
-    private GameConfig _config;
+    [Header("配置资产（空则读 Resources/TradeConfig，再空则用运行时默认值）")]
+    [Tooltip("Create > Chess > Trade Config 创建后拖入；改数值无需改代码")]
+    public TradeConfig config;
+
+    private TradeConfig _runtimeConfig;
+
+    /// <summary>生效配置（懒加载：Inspector → Resources → 运行时默认实例）</summary>
+    private TradeConfig Config
+    {
+        get
+        {
+            if (_runtimeConfig == null)
+            {
+                _runtimeConfig = config != null ? config
+                    : (Resources.Load<TradeConfig>("TradeConfig") ?? ScriptableObject.CreateInstance<TradeConfig>());
+            }
+            return _runtimeConfig;
+        }
+    }
 
     /// <summary>地下交易生效判定（内聚过滤，含高频伤害统计入口）：仅当前城邦 == 贸易之城时生效；
     /// 非贸易城邦下不累计伤害、不激活、不掷骰、不结算、不可购买（整套路径不触发，无日志）</summary>
@@ -61,9 +79,6 @@ public class UndergroundTradeManager : MonoBehaviour
         }
         Instance = this;
         _model = new UndergroundTradeModel();
-        _config = Resources.Load<GameConfig>("GameConfig");
-        if (_config == null)
-            Debug.LogError("[UndergroundTradeManager] GameConfig 加载失败！请确保 Assets/Game/Resources/GameConfig.asset 存在。", this);
     }
 
     private void OnDestroy()
@@ -98,11 +113,11 @@ public class UndergroundTradeManager : MonoBehaviour
         var state = _model.GetSide(side);
         if (state.EventActive) return;
 
-        int threshold = _config != null ? _config.undergroundDamageThreshold : 60;
+        int threshold = Config.undergroundDamageThreshold;
         if (state.AccumulatedDamage >= threshold && IsLowReputation(side))
         {
             state.EventActive = true;
-            Debug.Log($"[UndergroundTradeManager] {side} 累计直接伤害达 {state.AccumulatedDamage} 且信誉 < {(_config != null ? _config.undergroundReputationThreshold : 6)}，地下交易事件激活");
+            Debug.Log($"[UndergroundTradeManager] {side} 累计直接伤害达 {state.AccumulatedDamage} 且信誉 < {Config.undergroundReputationThreshold}，地下交易事件激活");
             _model.RaiseStateChanged(side);
         }
     }
@@ -111,7 +126,7 @@ public class UndergroundTradeManager : MonoBehaviour
     private bool IsLowReputation(PlayerSide side)
     {
         if (TradeCityManager.Instance == null) return false;
-        int threshold = _config != null ? _config.undergroundReputationThreshold : 6;
+        int threshold = Config.undergroundReputationThreshold;
         return TradeCityManager.Instance.GetReputation(side) < threshold;
     }
 
@@ -146,10 +161,10 @@ public class UndergroundTradeManager : MonoBehaviour
     /// <summary>当前开商行概率（%）：min(100, 基础 10% + 每超阈值 30 伤害 +20%）。60→10%，90→30%，120→50%…</summary>
     public int GetOpenChancePercent(PlayerSide side)
     {
-        int threshold = _config != null ? _config.undergroundDamageThreshold : 60;
-        int stepDamage = _config != null ? _config.undergroundProbStepDamage : 30;
-        int stepPercent = _config != null ? _config.undergroundProbStepPercent : 20;
-        int basePercent = _config != null ? _config.undergroundProbBasePercent : 10;
+        int threshold = Config.undergroundDamageThreshold;
+        int stepDamage = Config.undergroundProbStepDamage;
+        int stepPercent = Config.undergroundProbStepPercent;
+        int basePercent = Config.undergroundProbBasePercent;
 
         int damage = _model.GetSide(side).AccumulatedDamage;
         int steps = 0;
@@ -187,7 +202,7 @@ public class UndergroundTradeManager : MonoBehaviour
             // 信誉 ≥ 门槛 → 全重置（清累计伤害与概率、关商行与事件，回到初始状态重新累计）
             if (!IsLowReputation(side))
             {
-                Debug.Log($"[UndergroundTradeManager] {side} 信誉回升 ≥ {(_config != null ? _config.undergroundReputationThreshold : 6)}，地下交易关闭重置（累计伤害清零）");
+                Debug.Log($"[UndergroundTradeManager] {side} 信誉回升 ≥ {Config.undergroundReputationThreshold}，地下交易关闭重置（累计伤害清零）");
                 _model.ResetSide(side);
                 _model.RaiseStateChanged(side);
             }

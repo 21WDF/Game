@@ -105,6 +105,11 @@ public class GameFlowController : MonoBehaviour
     public void OnCityStateRevealConfirmed()
     {
         if (CurrentPhase != Phase.CityStateSelect) return;
+
+        // 战争之城·棋盘扩展（城邦揭晓确认后、进入选棋子前一次性完成；非战争城邦/已扩展
+        // 由 WarCityManager 内聚跳过，其余城邦零影响）
+        WarCityManager.Instance?.ExpandBoard();
+
         cityStateSelectionPanel?.Hide();
         CurrentPhase = Phase.P1Select;
         unitSelectionPanel?.Show(PlayerSide.P1);
@@ -170,9 +175,17 @@ public class GameFlowController : MonoBehaviour
 
         // 放置棋子
         var data = _currentSelection[_pendingIndex];
-        PieceManager.Instance?.SpawnPieceById(data.id, coord, DeployingPlayer);
+        var spawned = PieceManager.Instance?.SpawnPieceById(data.id, coord, DeployingPlayer);
         _placed[_pendingIndex] = true;
         Debug.Log($"[GameFlowController] {DeployingPlayer} 部署 {data.displayName} @ {coord}");
+
+        // 战争之城·主将确定：每方第一个放置的棋子自动成为主将（判断内聚 WarCityManager，
+        // 非战争城邦返回 false 无任何行为）；成为主将 → 部署面板显示提示
+        if (WarCityManager.Instance != null && spawned != null
+            && WarCityManager.Instance.OnPieceDeployed(DeployingPlayer, spawned))
+        {
+            deploymentPanel?.ShowGeneralNotice("此子将成为主将");
+        }
 
         _pendingIndex = -1;
         bool allPlaced = AllPlaced();

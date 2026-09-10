@@ -180,7 +180,7 @@ public class UI_CityStateSelection : MonoBehaviour
         CityStateKind.Monsoon => "季风城邦（机制待接入）",
         CityStateKind.Occult => "邪疑城邦（机制待接入）",
         CityStateKind.War => "战争城邦（机制待接入）",
-        CityStateKind.Element => "元素城邦（机制待接入）",
+        CityStateKind.Element => "元素附着 · 六系元素反应 · 护盾染色",
         _ => string.Empty
     };
 }

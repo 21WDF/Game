@@ -26,6 +26,15 @@ public class TurnManager : MonoBehaviour
     public PlayerSide ActivePlayer => _model.ActivePlayer;
     public bool IsGameOver => _model.IsGameOver;
 
+    /// <summary>强制判负（战争之城·主将双判负等即时结束场景）：loser 判负、对方获胜；
+    /// 幂等（已结束直接跳过）；走 Model.Forfeit → OnGameOver 既有结束管线（结算 UI / 面板隐藏等订阅者照常触发）</summary>
+    public void Forfeit(PlayerSide loser, string reason)
+    {
+        if (_model == null || _model.IsGameOver) return;
+        Debug.Log($"[TurnManager] {(loser == PlayerSide.P1 ? "玩家1" : "玩家2")} 判负：{reason}");
+        _model.Forfeit(loser);
+    }
+
     // ---- 单例 ----
     private void Awake()
     {
@@ -87,6 +96,9 @@ public class TurnManager : MonoBehaviour
 
         // 季风之城（一期·四季+昼夜）：该方回合开始结算回血类效果（春；null 安全，非季风城邦内部直接返回）
         MonsoonManager.Instance?.OnTurnStarted(_model.ActivePlayer);
+
+        // 战争之城·主将机制：该方回合开始 → 解除其主将的调换移动锁（null 安全，非战争城邦内部直接返回）
+        WarCityManager.Instance?.OnTurnStarted(_model.ActivePlayer);
     }
 
     /// <summary>每回合开始：结算 DoT、递减附着元素持续回合（&lt;=0 清除）、重置防御降低值</summary>

@@ -47,3 +47,7 @@ Thumbs.db
 # ===== 第三方插件嵌套 .git（追踪插件内容，但不追踪其内部版本控制历史）=====
 Assets/Editor/Pmx2Fbx/.git/
 Assets/MyToonShader/UnityGenshinToonShader/.git/
+
+# ===== 打包产物（不入版本库：Assets.zip ≈99MB，已贴近 GitHub 单文件 100MB 上限）=====
+/Assets.zip
+/*.zip

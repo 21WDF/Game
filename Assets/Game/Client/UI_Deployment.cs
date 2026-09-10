@@ -21,6 +21,10 @@ public class UI_Deployment : MonoBehaviour
     [SerializeField] private TextMeshProUGUI countText;
     [SerializeField] private Button confirmButton;
 
+    [Header("战争之城·主将提示")]
+    [Tooltip("主将提示文本（战争之城下首个放置的棋子成为主将时显示；未拖入时降级 Debug.Log，不阻塞流程）")]
+    [SerializeField] private TextMeshProUGUI generalNoticeText;
+
     private readonly List<UI_ShopItemRefs> _items = new();
 
     private void Start()
@@ -38,9 +42,19 @@ public class UI_Deployment : MonoBehaviour
         if (titleText != null)
             titleText.text = $"{(side == PlayerSide.P1 ? "玩家1" : "玩家2")} · 部署棋子（点击棋盘己方半场放置）";
         if (panelRoot != null) panelRoot.SetActive(true);
+        // 换方部署时清空上一方的主将提示（P1 的提示不能残留到 P2 的部署界面）
+        if (generalNoticeText != null) generalNoticeText.text = "";
         // 侧边栏不 RegisterPanelOpen —— 部署需要点击棋盘
         Rebuild(selection, placed, -1, false);
         UpdateCount(selection, placed);
+    }
+
+    /// <summary>战争之城·主将提示：首个放置的棋子成为主将时由 GameFlowController 调用
+    ///（noticeText 未拖入时降级 Debug.Log，玩家至少可在日志看到提示）</summary>
+    public void ShowGeneralNotice(string message)
+    {
+        if (generalNoticeText != null) generalNoticeText.text = message;
+        else Debug.Log($"[UI_Deployment] {message}");
     }
 
     public void Hide()

@@ -118,6 +118,31 @@ public class PieceManager : MonoBehaviour
         Debug.Log($"[PieceManager] {model.Data.displayName} 传送 {from} -> {toCoord}");
     }
 
+    /// <summary>双子调换位置（战争之城·主将调换用；瞬移语义：不走寻路、无动画、不触发任何
+    /// 路径经过类效果——路径被动/季风经过伤害等均在 MovePieceAlongPath 内，本方法不经过）。
+    /// 占据表先同时移除两坐标再各自放置，避免连续 TeleportPiece 的占据覆盖冲突（MovePiece(to) 会覆盖目标格）</summary>
+    public void SwapPieces(PieceModel a, PieceModel b)
+    {
+        if (a == null || b == null || a == b || a.IsDestroyed || b.IsDestroyed) return;
+        HexCoord coordA = a.Coord, coordB = b.Coord;
+        if (coordA == coordB) return;
+
+        PieceLayoutModel.Instance?.Remove(coordA);
+        PieceLayoutModel.Instance?.Remove(coordB);
+        a.SetCoord(coordB);
+        b.SetCoord(coordA);
+        PieceLayoutModel.Instance?.Place(coordB, a);
+        PieceLayoutModel.Instance?.Place(coordA, b);
+
+        if (ChessBoardController.Instance != null)
+        {
+            Vector3 yOffset = Vector3.up * (_config != null ? _config.pieceYOffset : 0f);
+            if (a.View != null) a.View.SnapToPosition(ChessBoardController.Instance.GetCellWorldPosition(coordB) + yOffset);
+            if (b.View != null) b.View.SnapToPosition(ChessBoardController.Instance.GetCellWorldPosition(coordA) + yOffset);
+        }
+        Debug.Log($"[PieceManager] 调换 {a.Data.displayName}({coordA}) ↔ {b.Data.displayName}({coordB})");
+    }
+
     /// <summary>沿完整路径移动棋子（逐格动画）。供 BattleController 途经点移动使用。
     /// 逐格动画走一格 → 逻辑立即跟进一格（SetCoord + 占据表）；occupancy 逐格更新。
     /// 大招能量整次移动只获取一次（动画前结算）。ForceInstantMove=true 时瞬移无动画。</summary>
@@ -770,6 +795,10 @@ public class PieceManager : MonoBehaviour
         }
 
         if (model.View != null) Destroy(model.View.gameObject);
+
+        // 战争之城·主将双判负（斩首 / 光杆司令）：销毁完成后通知（null 安全纯通知，
+        // 判断内聚 WarCityManager——非战争城邦内部直接返回，不影响现有销毁流程）
+        WarCityManager.Instance?.OnPieceDestroyed(model);
 
         Debug.Log($"[PieceManager] {model.Data.displayName} 死亡销毁");
     }

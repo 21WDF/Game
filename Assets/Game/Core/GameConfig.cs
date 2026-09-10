@@ -1,7 +1,9 @@
 using UnityEngine;
 
 /// <summary>
-/// 全局游戏配置（ScriptableObject）—— 收拢散落在各 Controller Inspector 的调参字段。
+/// 全局游戏配置（ScriptableObject）—— 纯基础设置（棋盘 / 行动点 / 动画 / 视觉 / UI 数值）。
+/// 城邦机制参数已拆分至各城邦独立配置：MonsoonConfig / WarConfig / TradeConfig / ElementCityConfig
+///（均在 Assets/Game/Resources/ 下，由各自管理器加载）。
 /// 加载方式：Resources.Load&lt;GameConfig&gt;("GameConfig")；asset 实例位于 Assets/Game/Resources/GameConfig.asset。
 /// 修改配置后无需改代码，直接在 asset 的 Inspector 调整即可。
 /// </summary>
@@ -47,54 +49,11 @@ public class GameConfig : ScriptableObject
     [Tooltip("每造成 1 点伤害获得的金币")]
     public float goldPerDamage = 1f;
 
-    [Header("护盾染色（元素城邦二期）")]
-    [Tooltip("护盾元素染色开关（元素城邦二期占位；未来城邦系统接管此开关）。开启时：有护盾且未染色的棋子被元素附着 → 护盾永久变成对应元素盾（染色）；染色后该元素无法再附着到该棋子（封印），其他元素照常附着；元素反应照常（封印的是附着，不是反应）。关闭时一切等同护盾基座（无染色）。")]
-    public bool shieldElementDyeingEnabled = true;
-
     [Tooltip("每受到 1 点伤害获得的金币")]
     public float goldPerDamageReceived = 0.3f;
 
     [Tooltip("双方初始金币")]
     public int startingGold = 50;
-
-    [Tooltip("金币透支下限（贸易之城·一期）：所有消费（买装备/买道具/拍卖成交）允许透支到该下限，扣款后金币可为负（欠钱状态）")]
-    public int overdraftFloor = -50;
-
-    [Header("贸易之城·拍卖")]
-    [Tooltip("拍卖成交倒计时（回合）：出价后每次任一方回合结束倒计时 -1，归零成交。严格按回合计、不按轮计（先手/后手公平性铁律）")]
-    public int auctionDealCountdownTurns = 6;
-
-    [Tooltip("拍卖行刷新间隔（回合）：每 N 个回合从物品池补充 1 件新拍品")]
-    public int auctionRefreshIntervalTurns = 5;
-
-    [Header("贸易之城·利息与信誉（二期）")]
-    [Tooltip("利息结算间隔（金币）：每轮结束每拥有 N 金币获得 1 金币利息（向下取整；金币为负时无利息）")]
-    public int interestGoldInterval = 10;
-
-    [Tooltip("欠钱扣信誉计次（回合）：欠钱状态下每持续欠钱满 N 个回合扣一次信誉（每次任一方回合结束计数 +1），扣 floor(欠钱数/利息结算间隔) 点；中途还清则计数重置")]
-    public int debtCreditTickTurns = 8;
-
-    [Tooltip("拍卖信誉门槛：信誉低于该值时无法在拍卖行出价（商店购买不受影响）")]
-    public int auctionReputationThreshold = 6;
-
-    [Tooltip("商店涨价：每失去 1 点信誉商店购买价格上涨的百分比（信誉 10 = 原价；涨价后价格向下取整；拍卖不受影响）")]
-    public int shopPricePercentPerReputation = 10;
-
-    [Header("贸易之城·地下交易（三期）")]
-    [Tooltip("地下交易激活阈值（累计直接伤害）：某方累计直接伤害 ≥ 该值且信誉 < undergroundReputationThreshold 时事件激活")]
-    public int undergroundDamageThreshold = 60;
-
-    [Tooltip("地下交易商行触发基础概率（%）：事件激活后每轮结束掷骰（阈值伤害时 = 该值）")]
-    public int undergroundProbBasePercent = 10;
-
-    [Tooltip("地下交易概率步进伤害：累计伤害每超过阈值该值，概率 +undergroundProbStepPercent")]
-    public int undergroundProbStepDamage = 30;
-
-    [Tooltip("地下交易概率步进（%）：每步增加的概率（封顶 100%）")]
-    public int undergroundProbStepPercent = 20;
-
-    [Tooltip("地下交易信誉门槛：信誉低于该值才可激活/维持地下交易（与拍卖门槛语义独立，可分别调参）")]
-    public int undergroundReputationThreshold = 6;
 
     [Header("背包容量")]
     [Tooltip("装备背包容量（列）：商店购买装备前校验，已装备数量达该值后拒绝购买（不扣金币）")]
