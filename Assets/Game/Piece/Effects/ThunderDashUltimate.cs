@@ -14,13 +14,25 @@ using UnityEngine;
 /// target 为点击格上的棋子（Ray 瞄准保证为 null 空格；防御性校验被占则不执行）。
 /// 构造参数：healAmount（冲刺后回血量）。
 /// </summary>
-public class ThunderDashUltimate : IUltimateEffect
+public class ThunderDashUltimate : IUltimateEffect, IUltimateAreaProvider
 {
     private readonly int _healAmount;    // 冲刺后回血量
 
     public ThunderDashUltimate(int healAmount)
     {
         _healAmount = Mathf.Max(0, healAmount);
+    }
+
+    /// <summary>范围声明（元素格子统一入口）：直线冲刺型 = 起点到落点整条直线上的所有格
+    ///（与 Execute 同源的直线几何；不带阻挡过滤——元素格范围是完整几何，不因飞越敌人而缺格）</summary>
+    public List<HexCoord> GetUltimateArea(PieceModel caster, PieceModel target, HexCoord? targetCoord)
+    {
+        var area = new List<HexCoord>();
+        if (caster == null || caster.Data == null || !targetCoord.HasValue) return area;
+        var board = ChessBoardController.Instance != null ? ChessBoardController.Instance.Model : null;
+        if (board == null) return area;
+        return new StraightPassProvider().FindPath(caster.Coord, targetCoord.Value, null, board)
+               ?? new List<HexCoord>();
     }
 
     /// <summary>敌人/自身模式入口：本大招为指定格模式，不通过两参入口执行（留空防误用）</summary>

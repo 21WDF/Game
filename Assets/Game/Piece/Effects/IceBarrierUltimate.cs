@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -8,8 +9,12 @@ using UnityEngine;
 /// target 参数被忽略（自身增益；调用方传入 caster）。
 /// 与 CurrentDefenseReduction 分离：避免被超导反应覆盖式赋值抹除，语义清晰。
 /// </summary>
-public class IceBarrierUltimate : IUltimateEffect
+public class IceBarrierUltimate : IUltimateEffect, IUltimateAreaProvider
 {
+    /// <summary>范围声明（元素格子统一入口）：自身增益型 = 自身所在格</summary>
+    public List<HexCoord> GetUltimateArea(PieceModel caster, PieceModel target, HexCoord? targetCoord)
+        => caster != null ? new List<HexCoord> { caster.Coord } : new List<HexCoord>();
+
     public void Execute(PieceModel caster, PieceModel target)
     {
         if (caster == null) return;

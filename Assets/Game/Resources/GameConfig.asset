@@ -23,21 +23,8 @@ MonoBehaviour:
   pieceYOffset: 0.12
   actedPieceColor: {r: 0.55, g: 0.55, b: 0.55, a: 1}
   goldPerDamage: 1
-  shieldElementDyeingEnabled: 1
   goldPerDamageReceived: 0.3
   startingGold: 50
-  overdraftFloor: -50
-  auctionDealCountdownTurns: 6
-  auctionRefreshIntervalTurns: 5
-  interestGoldInterval: 10
-  debtCreditTickTurns: 8
-  auctionReputationThreshold: 6
-  shopPricePercentPerReputation: 10
-  undergroundDamageThreshold: 60
-  undergroundProbBasePercent: 10
-  undergroundProbStepDamage: 30
-  undergroundProbStepPercent: 20
-  undergroundReputationThreshold: 6
   backpackEquipmentCapacity: 10
   backpackItemCapacity: 10
   overlayMoveColor: {r: 0.2, g: 0.4, b: 1, a: 0.39215687}

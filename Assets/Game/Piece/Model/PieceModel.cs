@@ -45,18 +45,40 @@ public class PieceModel
     /// 季风之城（昼夜修正）：昼 +1 / 夜 -1，最终 clamp 下限 1（夜至少可行动 1 格）；
     /// 生效判断与 clamp 内聚在 MonsoonManager（非季风城邦原样返回，行为不变）。
     /// 永久加成（雷暴三期C）：+PermanentMoveBonus 求和项。
-    /// 战争之城·主将：+主将移动加成 + 装备实际提供移动时的额外加成（内聚 WarCityManager）</summary>
-    public int MoveRange => Data != null
-        ? (MonsoonManager.Instance != null ? MonsoonManager.Instance.GetMoveRange(Data.moveConfig.baseRange + EquipmentMoveRange + PermanentMoveBonus + (WarCityManager.Instance != null ? WarCityManager.Instance.GetGeneralMoveBonus(this) + WarCityManager.Instance.GetGeneralEquipBonus(this, EquipmentMoveRange) : 0)) : Data.moveConfig.baseRange + EquipmentMoveRange + PermanentMoveBonus + (WarCityManager.Instance != null ? WarCityManager.Instance.GetGeneralMoveBonus(this) + WarCityManager.Instance.GetGeneralEquipBonus(this, EquipmentMoveRange) : 0))
-        : 0;
+    /// 战争之城·主将：+主将移动加成 + 装备实际提供移动时的额外加成（内聚 WarCityManager）。
+    /// 冰元素格减益：站在冰元素格上移动距离 -N（全城邦通用；查询式实时生效——离开/格子消失立即恢复，
+    /// 减在最终聚合结果上，保底 1）</summary>
+    public int MoveRange
+    {
+        get
+        {
+            if (Data == null) return 0;
+            int range = MonsoonManager.Instance != null
+                ? MonsoonManager.Instance.GetMoveRange(Data.moveConfig.baseRange + EquipmentMoveRange + PermanentMoveBonus + (WarCityManager.Instance != null ? WarCityManager.Instance.GetGeneralMoveBonus(this) + WarCityManager.Instance.GetGeneralEquipBonus(this, EquipmentMoveRange) : 0))
+                : Data.moveConfig.baseRange + EquipmentMoveRange + PermanentMoveBonus + (WarCityManager.Instance != null ? WarCityManager.Instance.GetGeneralMoveBonus(this) + WarCityManager.Instance.GetGeneralEquipBonus(this, EquipmentMoveRange) : 0);
+            int debuff = ElementTileManager.Instance != null ? ElementTileManager.Instance.GetMoveRangeDebuff(this) : 0;
+            return debuff > 0 ? Mathf.Max(1, range - debuff) : range;
+        }
+    }
 
     /// <summary>有效攻击范围（内联 attackConfig.baseRange + 装备加成）。
     /// 季风之城（暴雨）：上回合受击的棋子 -N（下限 1）；生效判断与 clamp 内聚在 MonsoonManager
     ///（非季风城邦/未受击原样返回，行为不变）。永久加成（雷暴三期C）：+PermanentAttackRangeBonus 求和项。
-    /// 战争之城·主将：+装备实际提供射程时的额外加成（主将基础四维无射程；内聚 WarCityManager）</summary>
-    public int AttackRange => Data != null
-        ? (MonsoonManager.Instance != null ? MonsoonManager.Instance.GetAttackRange(this, Data.attackConfig.baseRange + EquipmentAttackRange + PermanentAttackRangeBonus + (WarCityManager.Instance != null ? WarCityManager.Instance.GetGeneralEquipBonus(this, EquipmentAttackRange) : 0)) : Data.attackConfig.baseRange + EquipmentAttackRange + PermanentAttackRangeBonus + (WarCityManager.Instance != null ? WarCityManager.Instance.GetGeneralEquipBonus(this, EquipmentAttackRange) : 0))
-        : 0;
+    /// 战争之城·主将：+装备实际提供射程时的额外加成（主将基础四维无射程；内聚 WarCityManager）。
+    /// 水元素格减益：站在水元素格上攻击距离 -N（全城邦通用；查询式实时生效——离开/格子消失立即恢复，
+    /// 减在最终聚合结果上，保底 1）</summary>
+    public int AttackRange
+    {
+        get
+        {
+            if (Data == null) return 0;
+            int range = MonsoonManager.Instance != null
+                ? MonsoonManager.Instance.GetAttackRange(this, Data.attackConfig.baseRange + EquipmentAttackRange + PermanentAttackRangeBonus + (WarCityManager.Instance != null ? WarCityManager.Instance.GetGeneralEquipBonus(this, EquipmentAttackRange) : 0))
+                : Data.attackConfig.baseRange + EquipmentAttackRange + PermanentAttackRangeBonus + (WarCityManager.Instance != null ? WarCityManager.Instance.GetGeneralEquipBonus(this, EquipmentAttackRange) : 0);
+            int debuff = ElementTileManager.Instance != null ? ElementTileManager.Instance.GetAttackRangeDebuff(this) : 0;
+            return debuff > 0 ? Mathf.Max(1, range - debuff) : range;
+        }
+    }
 
     // ---- 对局内永久属性加成（季风·雷暴三期C：雷劈概率获得；随棋子存续、无回合递减、可叠加累积）----
     public int PermanentHPBonus { get; set; }

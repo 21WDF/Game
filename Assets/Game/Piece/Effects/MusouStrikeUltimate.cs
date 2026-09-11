@@ -16,7 +16,7 @@ using UnityEngine;
 /// 构造参数（雷电将军资产 effectJsonParams）：attackPercent（横向段攻击百分比，默认 100）、
 /// synergyTurns（协同状态持续回合，默认 6；协同伤害/回能参数在 CoordinatedStrikePassive 侧 jsonParams）。
 /// </summary>
-public class MusouStrikeUltimate : IUltimateEffect
+public class MusouStrikeUltimate : IUltimateEffect, IUltimateAreaProvider
 {
     private readonly int _attackPercent;    // 横向段攻击力百分比
     private readonly int _synergyTurns;     // 协同状态持续回合
@@ -25,6 +25,17 @@ public class MusouStrikeUltimate : IUltimateEffect
     {
         _attackPercent = attackPercent;
         _synergyTurns = Mathf.Max(1, synergyTurns);
+    }
+
+    /// <summary>范围声明（元素格子统一入口）：指定格 AOE 型 = 环切线横向 3 格
+    ///（与 Execute 同源同参数：RingTangentProvider.GetAttackZone）</summary>
+    public List<HexCoord> GetUltimateArea(PieceModel caster, PieceModel target, HexCoord? targetCoord)
+    {
+        var area = new List<HexCoord>();
+        if (caster == null || caster.Data == null || !targetCoord.HasValue) return area;
+        var board = ChessBoardController.Instance != null ? ChessBoardController.Instance.Model : null;
+        if (board == null) return area;
+        return new RingTangentProvider().GetAttackZone(caster.Coord, 1, targetCoord.Value, board);
     }
 
     /// <summary>敌人/自身模式入口：本大招为指定格模式，不通过两参入口执行（留空防误用）</summary>

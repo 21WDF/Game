@@ -103,6 +103,10 @@ public class PieceData : ScriptableObject
         public string effectClassName = "";
         [Tooltip("构造参数 JSON，如 {\"bonusDamage\":50}")]
         public string effectJsonParams = "";
+        [Tooltip("元素格子：勾选后大招释放时把作用范围（IUltimateAreaProvider 声明）内全部格子替换为释放者先天元素的元素格")]
+        public bool enableElementTiles = false;
+        [Tooltip("元素格持续回合（≤0 = 用 ElementTileConfig 默认值 4）")]
+        public int elementTileDurationTurns = 4;
 
         /// <summary>是否指定格模式（Tile）：瞄准时可点空格，效果走三参 Execute 拿目标格坐标</summary>
         public bool IsTileTargeting => targetMode == UltimateTargetMode.Tile;

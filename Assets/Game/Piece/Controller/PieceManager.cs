@@ -17,6 +17,7 @@ public class PieceManager : MonoBehaviour
     // ---- 反应修饰器收集缓冲（复用，避免每次攻击分配）----
     private readonly List<IReactionModifier> _reactionModifierBuffer = new();
     private GameConfig _config;
+    private bool _elementTileAdapterMissingWarned;   // 大招未实现 IUltimateAreaProvider 但勾选元素格子的告警只打一次
 
     // ---- 单例 ----
     private void Awake()
@@ -162,6 +163,20 @@ public class PieceManager : MonoBehaviour
         // 飓风幸运方块（季风三期B）：移动经过即拾取（路径所有节点含终点；落点不必是该格）。
         // 判断内聚 MonsoonManager（无方块时零开销直接返回）。
         MonsoonManager.Instance?.OnPieceMovedAlongPath(model, path);
+
+        // 元素格子·经过附着：与雷暴经过伤害同一条「移动经过路径」通知链路（新增一路通知，互不干扰——
+        // 上面的雷暴结算已按原路径完成，本通知不改变其触发时机/结算顺序/数值）。
+        // 只结算附着（+元素量、走完整反应流程、仅元素城邦生效）；路径上每格只附着一次。
+        // 返回打断坐标 = 经过附着触发超载/冻结 → 移动立即中断：截断路径，棋子停在触发的那一格
+        //（不继续前往原定终点；AP/能量已按整次移动结算，不受打断影响）。
+        HexCoord? interruptCoord = ElementTileManager.Instance?.NotifyPiecePathPassed(model, path);
+        if (interruptCoord.HasValue && path.Count > 1)
+        {
+            int stopIndex = path.LastIndexOf(interruptCoord.Value);
+            if (stopIndex >= 0 && stopIndex < path.Count - 1)
+                path = path.GetRange(0, stopIndex + 1);   // 截断：动画与占据表只走到打断格
+        }
+        to = path[path.Count - 1];
 
         // 构建世界坐标路径
         var worldPath = new List<Vector3>(path.Count);
@@ -891,6 +906,22 @@ public class PieceManager : MonoBehaviour
         }
         APManager.Instance.ConsumeAP(caster.Owner, 1);
 
+        // 元素格子（大招统一入口）：先声明范围——必须在 Execute 之前快照
+        //（雷驰突进等效果会移动释放者，Execute 后再取坐标范围就错了）。
+        // 只声明不替换：替换统一由 ElementTileManager 完成（各大招零替换逻辑）。
+        List<HexCoord> elementTileArea = null;
+        if (cfg.enableElementTiles)
+        {
+            if (effect is IUltimateAreaProvider areaProvider)
+                elementTileArea = areaProvider.GetUltimateArea(caster, target, targetCoord);
+            else if (!_elementTileAdapterMissingWarned)
+            {
+                _elementTileAdapterMissingWarned = true;
+                Debug.LogWarning($"[PieceManager] {cfg.effectClassName} 勾选了元素格子但未实现 IUltimateAreaProvider，" +
+                                 $"本次释放不产生格子替换（请为大招类补充范围声明）");
+            }
+        }
+
         if (targetCoord.HasValue)
             effect.Execute(caster, target, targetCoord.Value);   // 指定格模式：三参（默认委托两参，现有大招零改动）
         else
@@ -898,6 +929,12 @@ public class PieceManager : MonoBehaviour
 
         // 蓄力型：释放后层数清零（在 Execute 之后——效果已按释放时层数结算）
         if (chargeMode) caster.ChargeStacks = 0;
+
+        // 元素格子替换：勾选机制 + 释放者有先天元素 → 声明的范围整体替换为对应元素格
+        //（在 Execute 之后落格——本次大招结算不受新格子影响；ApplyElementTiles 内含同格覆盖/刷新规则）
+        if (elementTileArea != null && elementTileArea.Count > 0 && caster.Data.innateElement != ElementType.None)
+            ElementTileManager.Instance?.ApplyElementTiles(
+                elementTileArea, caster.Data.innateElement, cfg.elementTileDurationTurns);
 
         // 己方大招释放广播（雷电将军·雷罚恶曜之眼）：Execute 完成后通知释放者阵营全体存活棋子
         //（能量已消耗、效果已结算——回能类被动拿到的是消耗后的能量状态）

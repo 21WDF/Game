@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 /// <summary>大招目标模式。
 /// Enemy = 敌方棋子（默认；走 requiresTarget 旧语义，向后兼容既有资产）；
 /// Self = 自身增益（等同旧 requiresTarget=false）；
@@ -41,4 +43,18 @@ public interface IUltimateEffect
     /// <summary>执行大招效果（指定格模式入口）。默认委托两参版本——现有大招零改动；
     /// 格子型大招（召唤物 / 领域 / 指定位 AOE）覆写此方法消费 targetCoord。</summary>
     void Execute(PieceModel caster, PieceModel target, HexCoord targetCoord) => Execute(caster, target);
+}
+
+/// <summary>大招作用范围声明接口（元素格子机制统一入口）—— 大招效果类「只声明我影响了哪些格子」，
+/// 替换由 ElementTileManager 统一完成（各大招不各写一套替换逻辑）。
+/// 范围口径 = 大招的完整几何作用范围（不区分效果性质、不排除被占据的格子）：
+/// 直线穿透型 = 整条射线；指定格 AOE 型 = 该区域全部格；自身圆形型 = 整个圆内全部格。
+/// 在 UseUltimateCore 中于 Execute 之前调用（释放者位置 / 蓄力层数等仍是释放前状态，
+/// 与效果内部的范围计算同源同参数），Execute 完成后统一应用。
+/// 未实现本接口的大招：勾选元素格子配置时不产生任何格子替换（告警一次提示适配缺失）</summary>
+public interface IUltimateAreaProvider
+{
+    /// <summary>声明本次释放的几何作用范围（棋盘内坐标；空列表 = 无格子）。
+    /// target / targetCoord 与 Execute 收到的实参一致（Enemy/Self 模式 targetCoord 为 null）</summary>
+    List<HexCoord> GetUltimateArea(PieceModel caster, PieceModel target, HexCoord? targetCoord);
 }

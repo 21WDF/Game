@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -15,7 +16,7 @@ using UnityEngine;
 ///
 /// 构造参数：puppetPieceId（傀儡在 PieceRegistry 中的 id；傀儡资产需配置 isSummon=true + PuppetPassive）。
 /// </summary>
-public class BaronBunnyUltimate : IUltimateEffect
+public class BaronBunnyUltimate : IUltimateEffect, IUltimateAreaProvider
 {
     private readonly int _puppetPieceId;     // 傀儡棋子 id（注册表查找键）
 
@@ -23,6 +24,10 @@ public class BaronBunnyUltimate : IUltimateEffect
     {
         _puppetPieceId = puppetPieceId;
     }
+
+    /// <summary>范围声明（元素格子统一入口）：召唤型 = 召唤落点格（投放位置）</summary>
+    public List<HexCoord> GetUltimateArea(PieceModel caster, PieceModel target, HexCoord? targetCoord)
+        => targetCoord.HasValue ? new List<HexCoord> { targetCoord.Value } : new List<HexCoord>();
 
     /// <summary>敌人/自身模式入口：本大招为指定格模式，不通过两参入口执行（留空防误用）</summary>
     public void Execute(PieceModel caster, PieceModel target)

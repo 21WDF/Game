@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3ea7c7c3574dede4286f3fbcf8410d3e, type: 3}
+  m_Name: ElementTileConfig
+  m_EditorClassIdentifier: Assembly-CSharp::ElementTileConfig
+  defaultDurationTurns: 4
+  defaultAttachGauge: 1
+  fire:
+    damagePerTurn: 2
+    attackRangeDebuff: 0
+    moveRangeDebuff: 0
+    material: {fileID: 2100000, guid: 829996e3a41890f478f05f3cec7289bd, type: 2}
+  thunder:
+    damagePerTurn: 2
+    attackRangeDebuff: 0
+    moveRangeDebuff: 0
+    material: {fileID: 2100000, guid: 927da1a60186ed241a5216361b75b043, type: 2}
+  water:
+    damagePerTurn: 0
+    attackRangeDebuff: 1
+    moveRangeDebuff: 0
+    material: {fileID: 2100000, guid: 2cef4d4739d8dfd4aa37b31c79517099, type: 2}
+  ice:
+    damagePerTurn: 0
+    attackRangeDebuff: 0
+    moveRangeDebuff: 1
+    material: {fileID: 2100000, guid: cc0e4431008826b4aa7057f0eb5c5015, type: 2}

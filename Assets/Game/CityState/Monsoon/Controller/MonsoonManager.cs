@@ -87,11 +87,9 @@ public class MonsoonManager : MonoBehaviour
         // 泄漏兜底：管理器销毁时清掉仍存活的 3D 方块实体（不留幽灵方块）
         foreach (var box in _luckyBoxes)
             DestroyBoxView(box);
-        // 泄漏兜底：还原仍存活残留格的本体材质（格子可能已随场景销毁 → GetTile null 安全跳过）
-        var board = ChessBoardController.Instance;
-        if (board == null) return;
-        foreach (var residue in _residues)
-            board.GetTile(residue.coord)?.RestoreTileMaterial();
+        // 泄漏兜底：还原仍存活残留格的本体材质（格子可能已随场景销毁 → GetTile null 安全跳过）。
+        // 残留实体与材质已迁移到统一基座 ElementTileManager（雷暴变体迁移，行为不变）
+        ElementTileManager.Instance?.RestoreAllLightningMaterials();
     }
 
     // ==========================================
@@ -621,7 +619,8 @@ public class MonsoonManager : MonoBehaviour
     public void OnPieceMovedAlongPath(PieceModel piece, List<HexCoord> path)
     {
         if (path == null || path.Count == 0) return;
-        if (_luckyBoxes.Count == 0 && _residues.Count == 0) return;   // 无实体（含非季风城邦）直接返回
+        var tileMgr = ElementTileManager.Instance;   // 残留实体已迁移到统一基座（雷暴变体）
+        if (_luckyBoxes.Count == 0 && (tileMgr == null || tileMgr.LightningResidueCount == 0)) return;   // 无实体（含非季风城邦）直接返回
         if (piece == null || piece.IsDead) return;
 
         // 先结算残留伤害（棋子可能途中死亡 → 后续不再拾取）
@@ -740,23 +739,9 @@ public class MonsoonManager : MonoBehaviour
     }
 
     // ---- 雷电残留（三期C；复用三期B 格子实体模式：坐标→实体→渲染→生命周期）----
-    /// <summary>棋盘上的雷电残留（运行时实体）：坐标 + 当前强度。独立实体，按自身强度衰减，
-    /// 不受雷暴本身持续轮数影响；双方棋子经过/停留均受当前强度真实伤害</summary>
-    private class LightningResidue
-    {
-        public HexCoord coord;
-        public int power;   // 当前强度（位于/经过该格受 power 真实伤害；每轮 -衰减量，归零消失）
-    }
-    private readonly List<LightningResidue> _residues = new List<LightningResidue>();
+    // 【统一基座迁移】残留实体（坐标 + 强度）与格子材质已迁移到 ElementTileManager（isLightning=true 变体，
+    // 与元素格同一格互斥）；本管理器保留全部行为逻辑：生成/停留伤害/衰减/永久加成/日志，口径逐条不变。
     private int _lastResidueTickRound = -1;   // 残留衰减/停留伤害的轮号守卫（每轮一次）
-
-    /// <summary>查询某格上的残留（无 = null）</summary>
-    private LightningResidue GetResidueAt(HexCoord coord)
-    {
-        foreach (var r in _residues)
-            if (r.coord == coord) return r;
-        return null;
-    }
 
     /// <summary>雷暴出现时的雷劈（RollNewClimates 内雷暴条目命中时调用，一次性）：
     /// 随机 2~4 个格子 → 每格留雷电残留（初始强度）+ 劈中棋子扣真实伤害（环境伤害口径，
@@ -775,7 +760,6 @@ public class MonsoonManager : MonoBehaviour
             _residueMaterialMissingWarned = true;
             Debug.LogWarning("[MonsoonManager] MonsoonConfig 未配置 lightningResidueMaterial，雷电残留格无材质显示（数据层照常生效，仅无显示）");
         }
-        var board = ChessBoardController.Instance;
 
         for (int i = 0; i < count; i++)
         {
@@ -784,19 +768,10 @@ public class MonsoonManager : MonoBehaviour
             if (struckCoords.Contains(coord.Value)) continue;   // 同一格不重复劈
             struckCoords.Add(coord.Value);
 
-            // 留下雷电残留（已有残留的格子：取较大强度——重劈覆盖性增强，不叠加重复实体）
-            var existing = GetResidueAt(coord.Value);
+            // 留下雷电残留（统一基座承载实体 + 材质）：已有残留的格子取较大强度——
+            // 重劈覆盖性增强，不叠加重复实体（覆盖规则内聚 ElementTileManager.SetLightningResidue）
             int initialPower = Mathf.Max(0, Config.lightningResidueInitialPower);
-            if (existing != null)
-            {
-                existing.power = Mathf.Max(existing.power, initialPower);
-            }
-            else
-            {
-                _residues.Add(new LightningResidue { coord = coord.Value, power = initialPower });
-            }
-            var tile = board != null ? board.GetTile(coord.Value) : null;
-            tile?.SetTileMaterial(residueMaterial);   // 格子本体切残留材质（幂等：重劈同格不覆盖已保存原材质）
+            ElementTileManager.Instance?.SetLightningResidue(coord.Value, initialPower, residueMaterial);
 
             // 劈中棋子：扣真实伤害（环境伤害：source=null / Dot / True / 无元素——不计地下交易统计）
             var piece = PieceLayoutModel.Instance != null ? PieceLayoutModel.Instance.GetPieceAt(coord.Value) : null;
@@ -858,25 +833,28 @@ public class MonsoonManager : MonoBehaviour
 
     /// <summary>残留按「轮」结算（OnRoundEnded 内调用）：① 停在残留格的棋子受当前强度真实伤害；
     /// ② 强度 -衰减量，归零移除（高亮还原）。轮号守卫每轮一次。
-    /// 伤害顺序 = 先结算停留伤害（按当前强度）再衰减——「停留 8→6→4→2」递减口径</summary>
+    /// 伤害顺序 = 先结算停留伤害（按当前强度）再衰减——「停留 8→6→4→2」递减口径。
+    /// 【统一基座迁移】实体从 ElementTileManager 快照读取（strength = 原强度），数值/顺序/日志逐条不变</summary>
     private void TickResidues(int currentRound)
     {
-        if (_residues.Count == 0) return;
+        var tileMgr = ElementTileManager.Instance;
+        if (tileMgr == null) return;
+        var residues = tileMgr.GetLightningResidues();
+        if (residues.Count == 0) return;
         if (_lastResidueTickRound == currentRound) return;   // 本轮已结算
         _lastResidueTickRound = currentRound;
 
-        var board = ChessBoardController.Instance;
         int decay = Mathf.Max(0, Config.lightningResidueDecayPerRound);
 
         // ① 停留伤害：按结算前当前强度
         var damaged = new List<PieceModel>();
-        foreach (var residue in _residues)
+        foreach (var residue in residues)
         {
             var piece = PieceLayoutModel.Instance != null ? PieceLayoutModel.Instance.GetPieceAt(residue.coord) : null;
             if (piece == null || piece.IsDead) continue;
-            PieceManager.Instance?.ApplyIncomingDamage(piece, residue.power, null, DamageSource.Dot, DamageKind.True, ElementType.None);
+            PieceManager.Instance?.ApplyIncomingDamage(piece, residue.strength, null, DamageSource.Dot, DamageKind.True, ElementType.None);
             damaged.Add(piece);
-            Debug.Log($"[MonsoonManager] 雷电残留：{piece.Data.displayName} 停留受 {residue.power} 真实伤害（{residue.coord}）");
+            Debug.Log($"[MonsoonManager] 雷电残留：{piece.Data.displayName} 停留受 {residue.strength} 真实伤害（{residue.coord}）");
             // 停留受伤且存活 → 残留强化判定（概率随该格当前强度线性递减；从残留属性池按权重抽取；伤害结算后纯追加层）
             TryGrantPermanentBonus(piece, GetResidueBonusChance(residue), Config.residuePermanentBonusPool, "雷电残留·停留");
         }
@@ -889,16 +867,12 @@ public class MonsoonManager : MonoBehaviour
             }
         }
 
-        // ② 衰减：-decay，归零移除（格子材质还原原状）
-        for (int i = _residues.Count - 1; i >= 0; i--)
+        // ② 衰减：-decay，归零移除（格子材质还原原状——还原内聚基座 RemoveLightningResidue）
+        foreach (var residue in residues)
         {
-            _residues[i].power -= decay;
-            if (_residues[i].power <= 0)
-            {
-                var tile = board != null ? board.GetTile(_residues[i].coord) : null;
-                tile?.RestoreTileMaterial();   // 还原格子本体材质（不碰 overlay——战术/悬停高亮不受影响）
-                _residues.RemoveAt(i);
-            }
+            residue.strength -= decay;
+            if (residue.strength <= 0)
+                tileMgr.RemoveLightningResidue(residue.coord);
         }
     }
 
@@ -906,25 +880,27 @@ public class MonsoonManager : MonoBehaviour
     /// 强度每轮等差递减 → 概率同步等差递减，步长由「衰减量 ÷ 初始强度」自动决定（改初始强度/衰减量自动适配，零硬编码轮次）；
     /// 每格独立按自身当前强度计算（不同轮劈出的残留概率各异）；重劈充能到满（= 初始强度）时概率同步回升到配置值。
     /// 初始强度 ≤0 或当前强度 ≤0 时返回 0（归零残留本就该消失，防御性兜底）</summary>
-    private float GetResidueBonusChance(LightningResidue residue)
+    private float GetResidueBonusChance(ElementTileManager.TileEntity residue)
     {
         int initial = Mathf.Max(0, Config.lightningResidueInitialPower);
-        if (initial <= 0 || residue.power <= 0) return 0f;
-        return Config.lightningResiduePermanentBonusChance * ((float)residue.power / initial);
+        if (initial <= 0 || residue.strength <= 0) return 0f;
+        return Config.lightningResiduePermanentBonusChance * ((float)residue.strength / initial);
     }
 
     /// <summary>移动经过/到达残留格 → 受当前强度真实伤害（OnPieceMovedAlongPath 内与方块拾取并行结算）。
-    /// 内聚过滤：无残留时零开销直接返回</summary>
+    /// 内聚过滤：无残留时零开销直接返回。
+    /// 【统一基座迁移】实体查询转发基座，伤害数值/死亡销毁/永久加成口径逐条不变</summary>
     private void ApplyResiduePathDamage(PieceModel piece, List<HexCoord> path)
     {
-        if (_residues.Count == 0) return;
+        var tileMgr = ElementTileManager.Instance;
+        if (tileMgr == null || tileMgr.LightningResidueCount == 0) return;
         foreach (var coord in path)
         {
-            var residue = GetResidueAt(coord);
+            var residue = tileMgr.GetLightningResidueAt(coord);
             if (residue == null) continue;
             if (piece == null || piece.IsDead) return;   // 途中死亡即停止结算
-            PieceManager.Instance?.ApplyIncomingDamage(piece, residue.power, null, DamageSource.Dot, DamageKind.True, ElementType.None);
-            Debug.Log($"[MonsoonManager] 雷电残留：{piece.Data.displayName} 经过 {coord} 受 {residue.power} 真实伤害");
+            PieceManager.Instance?.ApplyIncomingDamage(piece, residue.strength, null, DamageSource.Dot, DamageKind.True, ElementType.None);
+            Debug.Log($"[MonsoonManager] 雷电残留：{piece.Data.displayName} 经过 {coord} 受 {residue.strength} 真实伤害");
             if (piece.IsDead)
             {
                 Debug.Log($"[MonsoonManager] {piece.Data.displayName} 因雷电残留伤害死亡");

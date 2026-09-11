@@ -18,7 +18,7 @@ using UnityEngine;
 /// attackPercent（即时段物理攻击力百分比，默认 100）、healAmount（友方回血量，默认 10；
 /// 自身 ×2）、stormTurns（风暴持续回合，默认 4；风暴半径/伤害参数在 BlizzardPassive 侧 jsonParams）。
 /// </summary>
-public class FrostFeastUltimate : IUltimateEffect
+public class FrostFeastUltimate : IUltimateEffect, IUltimateAreaProvider
 {
     private readonly int _radius;           // 即时段作用半径（以自身为中心）
     private readonly int _attackPercent;    // 即时段物理攻击力百分比
@@ -31,6 +31,22 @@ public class FrostFeastUltimate : IUltimateEffect
         _attackPercent = attackPercent;
         _healAmount = Mathf.Max(0, healAmount);
         _stormTurns = Mathf.Max(1, stormTurns);
+    }
+
+    /// <summary>范围声明（元素格子统一入口）：自身圆形复合型 = 以自身为中心 radius 格整个圆内全部格
+    ///（与 Execute 即时段同源同参数：AllCoordsInRadius 偏移 + 棋盘内过滤）</summary>
+    public List<HexCoord> GetUltimateArea(PieceModel caster, PieceModel target, HexCoord? targetCoord)
+    {
+        var area = new List<HexCoord>();
+        if (caster == null || caster.Data == null) return area;
+        var board = ChessBoardController.Instance != null ? ChessBoardController.Instance.Model : null;
+        if (board == null) return area;
+        foreach (var offset in HexCoord.AllCoordsInRadius(_radius))
+        {
+            var coord = new HexCoord(caster.Coord.q + offset.q, caster.Coord.r + offset.r);
+            if (board.Contains(coord)) area.Add(coord);
+        }
+        return area;
     }
 
     /// <summary>自身模式入口：target 被忽略（自身中心复合效果）</summary>
