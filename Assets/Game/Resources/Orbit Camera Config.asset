@@ -17,6 +17,6 @@ MonoBehaviour:
   rotateSensitivity: 0.25
   pitchMin: 15
   pitchMax: 85
-  zoomSpeed: 9
+  zoomSpeed: 40
   distanceMin: 4
   distanceMax: 30

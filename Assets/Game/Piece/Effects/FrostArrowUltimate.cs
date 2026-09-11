@@ -18,7 +18,7 @@ using UnityEngine;
 ///           magicBaseDamage（3 层魔法基础值）、magicAttackPercent（3 层攻击百分比）。
 /// 数值待 playtest 填写（默认 0）。
 /// </summary>
-public class FrostArrowUltimate : IUltimateEffect
+public class FrostArrowUltimate : IUltimateEffect, IUltimateAreaProvider
 {
     private readonly int _physicalBonusDamage;   // 1/2 层：附加在 EffectiveAttack 上的额外攻击力（物理，走冰元素反应）
     private readonly int _magicBaseDamage;       // 3 层：魔法基础伤害值
@@ -29,6 +29,25 @@ public class FrostArrowUltimate : IUltimateEffect
         _physicalBonusDamage = physicalBonusDamage;
         _magicBaseDamage = magicBaseDamage;
         _magicAttackPercent = magicAttackPercent;
+    }
+
+    /// <summary>范围声明（元素格子统一入口）：指定格 AOE 型 = 以目标格为中心按蓄力层数的圆形
+    ///（与 Execute 同源分档：1 层单点 / 2 层周围 1 格 / 3 层周围 2 格；
+    /// 声明先于 Execute 且先于蓄力清零调用——层数与效果结算读到的一致）</summary>
+    public List<HexCoord> GetUltimateArea(PieceModel caster, PieceModel target, HexCoord? targetCoord)
+    {
+        var area = new List<HexCoord>();
+        if (caster == null || caster.Data == null || !targetCoord.HasValue) return area;
+        var board = ChessBoardController.Instance != null ? ChessBoardController.Instance.Model : null;
+        if (board == null) return area;
+        int stacks = caster.ChargeStacks;
+        int radius = stacks <= 1 ? 0 : stacks == 2 ? 1 : 2;
+        foreach (var offset in HexCoord.AllCoordsInRadius(radius))
+        {
+            var coord = new HexCoord(targetCoord.Value.q + offset.q, targetCoord.Value.r + offset.r);
+            if (board.Contains(coord)) area.Add(coord);
+        }
+        return area;
     }
 
     /// <summary>敌人/自身模式入口：本大招为指定格模式，不通过两参入口执行（留空防误用）</summary>

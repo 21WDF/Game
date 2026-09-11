@@ -23,7 +23,7 @@ using UnityEngine;
 /// 死亡销毁：范围内死者由本效果统一 DestroyPiece；点击格（targetCoord）上的棋子若死亡
 /// 留给 UseUltimateCore 尾部统一销毁（DestroyPiece 无幂等保护，防双重销毁）。
 /// </summary>
-public class ThunderSweepUltimate : IUltimateEffect, IPartialEnergyUltimate
+public class ThunderSweepUltimate : IUltimateEffect, IPartialEnergyUltimate, IUltimateAreaProvider
 {
     private readonly int _normalBonusDamage;       // 普通态：附加在 EffectiveAttack 上的额外攻击力
     private readonly int _empoweredBaseDamage;     // 强化态：魔法基础伤害值
@@ -39,6 +39,20 @@ public class ThunderSweepUltimate : IUltimateEffect, IPartialEnergyUltimate
         _empoweredAttackPercent = empoweredAttackPercent;
         _empoweredEnergyCost = empoweredEnergyCost;
         _empoweredElemental = empoweredElemental;
+    }
+
+    /// <summary>范围声明（元素格子统一入口）：指定格 AOE 型，与 Execute 同源分形态——
+    /// 普通态 = RingTangent 横向 3 格；强化态 = 指定格及周围 1 格（圆形含中心）。
+    /// 声明先于 Execute 调用，IsEmpowered 形态判断与结算一致</summary>
+    public List<HexCoord> GetUltimateArea(PieceModel caster, PieceModel target, HexCoord? targetCoord)
+    {
+        var area = new List<HexCoord>();
+        if (caster == null || caster.Data == null || !targetCoord.HasValue) return area;
+        var board = ChessBoardController.Instance != null ? ChessBoardController.Instance.Model : null;
+        if (board == null) return area;
+        return caster.IsEmpowered
+            ? GetRadiusCoords(targetCoord.Value, 1, board)
+            : new RingTangentProvider().GetAttackZone(caster.Coord, 1, targetCoord.Value, board);
     }
 
     /// <summary>本次释放的能量消耗量：强化态 = empoweredEnergyCost（保留剩余）；普通态 = 全清。

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -10,7 +11,7 @@ using UnityEngine;
 /// target 参数被忽略（自身增益；调用方传入 caster）。
 /// 构造参数：radius（增益半径，含自身）、bonusAttack（攻击加成值）、duration（持续回合）。
 /// </summary>
-public class TideSurgeUltimate : IUltimateEffect
+public class TideSurgeUltimate : IUltimateEffect, IUltimateAreaProvider
 {
     private const string SourceMark = "TideSurgeUltimate";   // TempBuff 来源标记（刷新式查重）
 
@@ -23,6 +24,18 @@ public class TideSurgeUltimate : IUltimateEffect
         _radius = Mathf.Max(1, radius);
         _bonusAttack = bonusAttack;
         _duration = Mathf.Max(1, duration);
+    }
+
+    /// <summary>范围声明（元素格子统一入口）：自身圆形增益型 = 以自身为圆心 radius 格整个圆内全部格
+    ///（与 Execute 同源同参数：GetTilesInAttackRange 含中心格）</summary>
+    public List<HexCoord> GetUltimateArea(PieceModel caster, PieceModel target, HexCoord? targetCoord)
+    {
+        var area = new List<HexCoord>();
+        if (caster == null || caster.Data == null) return area;
+        if (ChessBoardController.Instance == null) return area;
+        foreach (var tile in ChessBoardController.Instance.GetTilesInAttackRange(caster.Coord, _radius))
+            area.Add(tile.Coord);
+        return area;
     }
 
     public void Execute(PieceModel caster, PieceModel target)

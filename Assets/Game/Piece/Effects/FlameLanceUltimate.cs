@@ -14,7 +14,7 @@ using UnityEngine;
 /// 死亡销毁：射线上死者由本效果统一 DestroyPiece；点击格（targetCoord）上的棋子若死亡
 /// 留给 UseUltimateCore 尾部统一销毁（DestroyPiece 无幂等保护，防双重销毁）。
 /// </summary>
-public class FlameLanceUltimate : IUltimateEffect
+public class FlameLanceUltimate : IUltimateEffect, IUltimateAreaProvider
 {
     private readonly int _length;         // 射线长度（格）
     private readonly int _bonusDamage;    // 附加在 EffectiveAttack 上的额外攻击力
@@ -23,6 +23,19 @@ public class FlameLanceUltimate : IUltimateEffect
     {
         _length = Mathf.Max(1, length);
         _bonusDamage = bonusDamage;
+    }
+
+    /// <summary>范围声明（元素格子统一入口）：直线穿透型 = 整条射线上的所有格
+    ///（与 Execute 内同源同参数：ClosestDirection 归并方向 + AppendRay 延伸；含棋盘边界校验）</summary>
+    public List<HexCoord> GetUltimateArea(PieceModel caster, PieceModel target, HexCoord? targetCoord)
+    {
+        var area = new List<HexCoord>();
+        if (caster == null || caster.Data == null || !targetCoord.HasValue) return area;
+        var board = ChessBoardController.Instance != null ? ChessBoardController.Instance.Model : null;
+        if (board == null) return area;
+        int dir = LineAttackProvider.ClosestDirection(caster.Coord, targetCoord.Value);
+        LineAttackProvider.AppendRay(area, caster.Coord, dir, _length, board);
+        return area;
     }
 
     /// <summary>敌人/自身模式入口：本大招为指定格模式，不通过两参入口执行（留空防误用）</summary>

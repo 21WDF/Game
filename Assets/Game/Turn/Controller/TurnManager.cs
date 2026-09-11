@@ -307,6 +307,11 @@ public class TurnManager : MonoBehaviour
         //（null 安全；扣血走统一伤害入口，致死者在管理器内销毁后由下方 CheckGameOver 正常判定胜负）
         MonsoonManager.Instance?.OnTurnEnded(_model.ActivePlayer);
 
+        // 元素格子（统一基座）：按「回合」结算（任一方回合结束都触发——P1 行动一次 = 1 回合）：
+        // 停留效果（附着 + 持续伤害）→ 时长递减 → 到期移除还原材质。
+        //（null 安全，无元素格时零开销；雷电残留不在此结算——按「轮」走 MonsoonManager.OnRoundEnded）
+        ElementTileManager.Instance?.OnTurnEnded();
+
         if (_model.ActivePlayer == PlayerSide.P2)
         {
             TradeCityManager.Instance?.OnRoundEnded();

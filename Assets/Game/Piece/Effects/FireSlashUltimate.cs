@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -9,7 +10,7 @@ using UnityEngine;
 ///   - 附着攻击方先天元素（反应消耗底元素后覆盖为新元素）。
 ///   - 金币实时到账（硬约束：伤害发生时金币实时结算，无回合末结算）。
 /// </summary>
-public class FireSlashUltimate : IUltimateEffect
+public class FireSlashUltimate : IUltimateEffect, IUltimateAreaProvider
 {
     private readonly int _bonusDamage;
 
@@ -17,6 +18,10 @@ public class FireSlashUltimate : IUltimateEffect
     {
         _bonusDamage = bonusDamage;
     }
+
+    /// <summary>范围声明（元素格子统一入口）：单体伤害型 = 目标所在格（无目标 = 无格子）</summary>
+    public List<HexCoord> GetUltimateArea(PieceModel caster, PieceModel target, HexCoord? targetCoord)
+        => target != null ? new List<HexCoord> { target.Coord } : new List<HexCoord>();
 
     public void Execute(PieceModel caster, PieceModel target)
     {

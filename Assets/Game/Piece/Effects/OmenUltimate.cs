@@ -12,7 +12,7 @@ using UnityEngine;
 ///
 /// 构造参数（莫娜资产 effectJsonParams）：radius（默认 2）、duration（默认 4）、percent（默认 50）。
 /// </summary>
-public class OmenUltimate : IUltimateEffect
+public class OmenUltimate : IUltimateEffect, IUltimateAreaProvider
 {
     private readonly int _radius;       // 易伤作用半径（目标格为中心，含中心格）
     private readonly int _duration;     // 持续回合
@@ -23,6 +23,22 @@ public class OmenUltimate : IUltimateEffect
         _radius = Mathf.Max(0, radius);
         _duration = Mathf.Max(1, duration);
         _percent = Mathf.Max(0, percent);
+    }
+
+    /// <summary>范围声明（元素格子统一入口）：指定格 AOE 型 = 以目标格为中心 radius 格圆形全部格
+    ///（含中心格；棋盘内过滤——与 Execute 的易伤作用范围同几何）</summary>
+    public List<HexCoord> GetUltimateArea(PieceModel caster, PieceModel target, HexCoord? targetCoord)
+    {
+        var area = new List<HexCoord>();
+        if (caster == null || caster.Data == null || !targetCoord.HasValue) return area;
+        var board = ChessBoardController.Instance != null ? ChessBoardController.Instance.Model : null;
+        if (board == null) return area;
+        foreach (var offset in HexCoord.AllCoordsInRadius(_radius))
+        {
+            var coord = new HexCoord(targetCoord.Value.q + offset.q, targetCoord.Value.r + offset.r);
+            if (board.Contains(coord)) area.Add(coord);
+        }
+        return area;
     }
 
     /// <summary>敌人/自身模式入口：本大招为指定格模式，不通过两参入口执行（留空防误用）</summary>
