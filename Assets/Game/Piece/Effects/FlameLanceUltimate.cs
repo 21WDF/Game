@@ -94,6 +94,10 @@ public class FlameLanceUltimate : IUltimateEffect, IUltimateAreaProvider
                     enemy.CurrentDefenseReduction = reaction.DefenseReduction;
             }
 
+            // 反应视觉脉冲（纯表现，不参与任何结算）：触发元素反应时目标光环脉冲
+            if (reaction.Type != ReactionType.None)
+                enemy.View?.PulseAura();
+
             // 金币实时到账（硬约束，同烈焰斩双边口径；护盾拦截时双方都无金币）
             if (landed)
             {

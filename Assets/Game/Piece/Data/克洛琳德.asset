@@ -47,5 +47,7 @@ MonoBehaviour:
     tileTargetShape: 1
     effectClassName: ThunderDashUltimate
     effectJsonParams: '{"healAmount":10}'
+    enableElementTiles: 1
+    elementTileDurationTurns: 4
   usesChargeSystem: 0
   maxChargeStacks: 3

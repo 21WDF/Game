@@ -72,6 +72,10 @@ public class PieceManager : MonoBehaviour
         var model = new PieceModel(data, owner, coord, view);
         view.BindModel(model);
 
+        // 召唤出现表现：仅召唤物（isSummon，如兔兔伯爵/傀儡）播放出现动作；开局部署的棋子不播（避免喧闹）
+        if (data.isSummon)
+            view.PlaySummonAppearance();
+
         // 内建被动实例化：Data.builtInPassives → model.BuiltInPassives（工厂与装备被动共用）
         // OnEquip 与装备路径（EquipmentManager）同口径：此前内建被动从未触发 OnEquip，
         // 傀儡（PuppetPassive）等依赖宿主注入/注册的被动会失效，此处补齐。
@@ -344,6 +348,10 @@ public class PieceManager : MonoBehaviour
             }
         }
 
+        // 反应视觉脉冲（纯表现，不参与任何结算）：命中触发元素反应时，目标脚下光环做一次强调脉冲
+        if (reaction.Type != ReactionType.None)
+            target.View?.PulseAura();
+
         // 冻结反应：设置冻结回合（IsFrozen 由 FreezeTurnsRemaining 派生）
         if (reaction.FreezeTurns > 0)
         {
@@ -401,6 +409,20 @@ public class PieceManager : MonoBehaviour
         string reactionStr = reaction.Type != ReactionType.None ? $"，触发{reaction.Type}" : "";
         Debug.Log($"[PieceManager] {attacker.Data.displayName} 攻击 {target.Data.displayName}，造成 {damage} 伤害{reactionStr}（剩余 {target.CurrentHP}）");
 
+        // 动作表现（纯异步，不锁输入、不改逻辑；受击分级内聚在 PlayHitReaction）：
+        // 攻击者朝目标方向前冲；受击者按伤害来源播完整/轻量受击（目标已死则不播——死亡动作由
+        // DestroyPiece 承接，避免两动作在视觉子节点上争抢）
+        if (attacker.View != null && !attacker.IsDestroyed)
+        {
+            Vector3 targetPos = target.View != null
+                ? target.View.transform.position
+                : (ChessBoardController.Instance != null
+                    ? ChessBoardController.Instance.GetCellWorldPosition(target.Coord)
+                    : attacker.View.transform.position);
+            attacker.View.PlayAttack(targetPos);
+        }
+        PlayHitReaction(target, damageSource, attacker);
+
         if (target.IsDead)
             DestroyPiece(target, attacker);
 
@@ -446,6 +468,8 @@ public class PieceManager : MonoBehaviour
         {
             if (damageType == DamageSource.Ultimate)
                 NotifyAllyAttackHit(source, target, damage, damageType);
+            // 护盾格挡的命中同样播受击（打击视觉上命中了，只是数值被盾拦）
+            PlayHitReaction(target, damageType, source);
             return false;
         }
 
@@ -482,11 +506,38 @@ public class PieceManager : MonoBehaviour
         foreach (var passive in target.GetAllPassives())
             passive.OnDamageReceived(target, damage, damageType, damageKind);
 
+        // 受击表现（纯异步；分级内聚在 PlayHitReaction——本方法为「统一伤害入口」，
+        // 大招/溅射/DoT/环境/反伤全部经由此处，一次覆盖）
+        PlayHitReaction(target, damageType, source);
+
         // 己方攻击命中广播（雷电将军·协同攻击）：大招路径尾部（Ultimate 来源——大招直伤/持续段
         // 如凛冬风暴每命中一次广播一次；Splash/Dot/Reflect 来源不广播，保持"攻击"语义）
         if (damageType == DamageSource.Ultimate)
             NotifyAllyAttackHit(source, target, damage, damageType);
         return true;
+    }
+
+    /// <summary>受击表现分级（判定内聚一处）：按伤害来源类型区分完整/轻量受击。
+    /// 完整（位移 + 抖动）：直接伤害来源——普攻 Attack / 溅射 Splash / 大招 Ultimate；
+    /// 轻量（仅抖动，无位移）：持续与环境伤害——DoT / 环境（Dot）与反伤（Reflect，已与需求确认）。
+    /// 目标已死/已销毁不播（死亡动作由 DestroyPiece 承接，避免两动作在视觉子节点上争抢）。
+    /// sourcePiece 提供受击反方向（轻量无位移不依赖）；来源不可得时完整受击退化为仅抖动。
+    /// 两个调用点：AttackPiece（普攻族内联路径）与 ApplyIncomingDamage（大招/溅射/DoT/环境/反伤统一入口）。</summary>
+    private void PlayHitReaction(PieceModel target, DamageSource source, PieceModel sourcePiece)
+    {
+        if (target == null || target.View == null || target.IsDead || target.IsDestroyed) return;
+        bool full = (source & (DamageSource.Attack | DamageSource.Splash | DamageSource.Ultimate)) != 0;
+        if (full)
+        {
+            Vector3? from = sourcePiece != null && sourcePiece.View != null
+                ? (Vector3?)sourcePiece.View.transform.position
+                : null;
+            target.View.TakeHit(from);
+        }
+        else
+        {
+            target.View.TakeLightHit();
+        }
     }
 
     /// <summary>己方攻击命中广播：通知攻击方阵营全体存活棋子的全部被动 OnAllyAttackHit。
@@ -543,6 +594,11 @@ public class PieceManager : MonoBehaviour
             // 染色：附着成功（结果非 None）→ 未染色护盾变为对应元素盾
             target.TryDyeShieldElement(resultElem);
         }
+
+        // 反应视觉脉冲（纯表现，不参与任何结算）：触发元素反应时目标光环脉冲
+        //（本方法是普攻以外全部元素交互的共用入口——被动/元素格/各大招，一次覆盖）
+        if (reaction.Type != ReactionType.None)
+            target.View?.PulseAura();
 
         // ---- 反应状态副作用（与 AttackPiece 同字段同口径）----
         if (reaction.DefenseReduction > 0)
@@ -809,7 +865,13 @@ public class PieceManager : MonoBehaviour
             }
         }
 
-        if (model.View != null) Destroy(model.View.gameObject);
+        // 视图延后销毁：逻辑层死亡处理（占据移除/回合注销/被动通知/胜负判定）已在上方立即完成，
+        // 这里只延后 GameObject 的销毁——先播死亡动作，动作播完再 Destroy（不延迟逻辑，纯表现延后）
+        if (model.View != null)
+        {
+            GameObject viewGo = model.View.gameObject;
+            model.View.PlayDeath(() => { if (viewGo != null) Destroy(viewGo); });
+        }
 
         // 战争之城·主将双判负（斩首 / 光杆司令）：销毁完成后通知（null 安全纯通知，
         // 判断内聚 WarCityManager——非战争城邦内部直接返回，不影响现有销毁流程）
@@ -926,6 +988,10 @@ public class PieceManager : MonoBehaviour
             effect.Execute(caster, target, targetCoord.Value);   // 指定格模式：三参（默认委托两参，现有大招零改动）
         else
             effect.Execute(caster, target);
+
+        // 大招扩散光环（纯表现，不影响任何结算/能量/回合流转）：释放者脚下圆环扩散一圈淡出。
+        // 在 Execute 之后触发——锚定大招结算后释放者的最终逻辑格（雷驰突进等会移动释放者）
+        caster.View?.PlayUltimateSpread();
 
         // 蓄力型：释放后层数清零（在 Execute 之后——效果已按释放时层数结算）
         if (chargeMode) caster.ChargeStacks = 0;

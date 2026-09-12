@@ -28,6 +28,7 @@ MonoBehaviour:
     providerJsonParams: 
     baseRange: 2
   prefab: {fileID: 4818162744574187451, guid: 555a1b26be2bfaa4095021c31f7e8f8f, type: 3}
+  isSummon: 0
   innateElement: 3
   builtInPassives:
   - className: SparkEmpowerPassive
@@ -46,3 +47,7 @@ MonoBehaviour:
     tileTargetShape: 0
     effectClassName: ThunderSweepUltimate
     effectJsonParams: '{"normalBonusDamage":0,"empoweredBaseDamage":0,"empoweredAttackPercent":0,"empoweredEnergyCost":50,"empoweredElemental":true}'
+    enableElementTiles: 1
+    elementTileDurationTurns: 4
+  usesChargeSystem: 0
+  maxChargeStacks: 3

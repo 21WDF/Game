@@ -52,5 +52,7 @@ MonoBehaviour:
     tileTargetShape: 0
     effectClassName: MusouStrikeUltimate
     effectJsonParams: '{"attackPercent":100,"synergyTurns":6}'
+    enableElementTiles: 1
+    elementTileDurationTurns: 4
   usesChargeSystem: 0
   maxChargeStacks: 3
