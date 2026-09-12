@@ -45,6 +45,47 @@ public class GameConfig : ScriptableObject
     [Tooltip("已行动棋子的去饱和色（变灰）")]
     public Color actedPieceColor = new Color(0.55f, 0.55f, 0.55f, 1f);
 
+    [Header("棋子动作表现")]
+    [Tooltip("攻击动作：向目标方向前冲的距离（世界单位）")]
+    public float attackDashDistance = 0.3f;
+
+    [Tooltip("攻击动作总时长（前冲 + 回位，秒）")]
+    public float attackDuration = 0.25f;
+
+    [Tooltip("受击·完整的位移距离（沿受击反方向，世界单位）")]
+    public float hitDisplacement = 0.15f;
+
+    [Tooltip("受击动作总时长（秒；完整与轻量共用，轻量取 0.7 倍）")]
+    public float hitDuration = 0.2f;
+
+    [Tooltip("死亡动作总时长（缩小 + 下沉，秒；播完再销毁视图）")]
+    public float deathDuration = 0.3f;
+
+    [Header("棋子视觉反馈")]
+    [Tooltip("受击闪白时长（秒；亮起+回落总时长，完整与轻量共用）")]
+    public float hitFlashDuration = 0.12f;
+
+    [Tooltip("受击闪白强度（Emission 白闪倍率，0-1）")]
+    public float hitFlashIntensity = 0.8f;
+
+    [Tooltip("轻量受击（DoT/环境）闪白强度系数（相对完整受击的比例）")]
+    public float lightHitFlashFactor = 0.6f;
+
+    [Tooltip("元素光环半径（世界单位，环外半径）")]
+    public float auraRadius = 0.6f;
+
+    [Tooltip("元素光环高度（离地高度，世界单位）")]
+    public float auraHeight = 0.02f;
+
+    [Tooltip("反应脉冲时长（秒；放大+亮起再回落）")]
+    public float reactionPulseDuration = 0.25f;
+
+    [Tooltip("大招扩散时长（秒；由小放大并淡出）")]
+    public float ultimateSpreadDuration = 0.35f;
+
+    [Tooltip("大招扩散最大半径（世界单位）")]
+    public float ultimateMaxRadius = 1.5f;
+
     [Header("金币")]
     [Tooltip("每造成 1 点伤害获得的金币")]
     public float goldPerDamage = 1f;

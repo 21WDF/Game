@@ -167,6 +167,10 @@ public class ThunderSweepUltimate : IUltimateEffect, IPartialEnergyUltimate, IUl
                         enemy.CurrentDefenseReduction = reaction.DefenseReduction;
                 }
 
+                // 反应视觉脉冲（纯表现，不参与任何结算）：触发元素反应时目标光环脉冲
+                if (reaction.Type != ReactionType.None)
+                    enemy.View?.PulseAura();
+
                 if (landed)
                 {
                     GoldManager.Instance?.OnDamageDealt(caster, damage);

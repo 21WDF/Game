@@ -2797,8 +2797,8 @@ MonoBehaviour:
   enableDebugMode: 1
   p1PieceIds: 010000000a0000000b0000000c0000000d0000000f00000010000000
   p2PieceIds: 11000000120000000b0000000c0000000d0000000f00000010000000
-  debugCityState: 5
-  testGoldP1: 0
+  debugCityState: 6
+  testGoldP1: 100
   testGoldP2: 9999
   infiniteAP: 0
   godModeP1: 0

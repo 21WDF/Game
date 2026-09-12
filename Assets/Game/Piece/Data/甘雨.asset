@@ -42,5 +42,7 @@ MonoBehaviour:
     tileTargetShape: 0
     effectClassName: FrostArrowUltimate
     effectJsonParams: '{"physicalBonusDamage":0,"magicBaseDamage":0,"magicAttackPercent":0}'
+    enableElementTiles: 1
+    elementTileDurationTurns: 4
   usesChargeSystem: 1
   maxChargeStacks: 3

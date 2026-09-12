@@ -104,8 +104,23 @@ public class PieceModel
     // ---- 元素状态（元素城邦系统）----
     /// <summary>同种元素叠加时的 Gauge 上限（每回合 -1 自然消耗；5 足够容纳合理叠加场景）</summary>
     public const int MaxElementGauge = 5;
-    /// <summary>当前附着元素（底元素；反应消耗后可能被新元素覆盖或清除）</summary>
-    public ElementType AffixedElement { get; set; }
+    /// <summary>当前附着元素（底元素；反应消耗后可能被新元素覆盖或清除）。
+    /// setter 在「值变化」时触发 <see cref="OnElementChanged"/>（纯视觉通知，不参与任何结算；
+    /// 光环/UI 图标等订阅显示）。同元素 Gauge 增减不触发（值未变）。</summary>
+    public ElementType AffixedElement
+    {
+        get => _affixedElement;
+        set
+        {
+            if (_affixedElement == value) return;
+            _affixedElement = value;
+            OnElementChanged?.Invoke(value);
+        }
+    }
+    private ElementType _affixedElement;
+    /// <summary>附着元素变化事件（纯通知，不参与任何结算逻辑）：元素光环显示/隐藏/换色订阅。
+    /// 参数 = 最新元素（None = 附着被消耗/清除）。</summary>
+    public event System.Action<ElementType> OnElementChanged;
     /// <summary>附着元素量（&gt;0 表示有附着；每回合开始 -1，归零清除元素。同种元素攻击叠加，上限 MaxElementGauge）</summary>
     public int AffixedElementGauge { get; set; }
     /// <summary>当前防御降低值（超导反应触发；按 DefenseReductionTurnsRemaining 持续，耗尽后回合开始清零）</summary>

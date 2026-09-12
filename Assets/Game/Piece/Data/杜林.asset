@@ -47,5 +47,7 @@ MonoBehaviour:
     tileTargetShape: 0
     effectClassName: FlameLanceUltimate
     effectJsonParams: '{"length":6,"bonusDamage":0}'
+    enableElementTiles: 1
+    elementTileDurationTurns: 4
   usesChargeSystem: 0
   maxChargeStacks: 3
