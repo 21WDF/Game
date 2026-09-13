@@ -22,6 +22,19 @@ MonoBehaviour:
   runAnimSpeed: 1
   pieceYOffset: 0.12
   actedPieceColor: {r: 0.55, g: 0.55, b: 0.55, a: 1}
+  attackDashDistance: 0.3
+  attackDuration: 0.25
+  hitDisplacement: 0.15
+  hitDuration: 0.2
+  deathDuration: 0.3
+  hitFlashDuration: 0.12
+  hitFlashIntensity: 0.8
+  lightHitFlashFactor: 0.6
+  auraRadius: 0.6
+  auraHeight: 0.12
+  reactionPulseDuration: 0.25
+  ultimateSpreadDuration: 0.35
+  ultimateMaxRadius: 1.5
   goldPerDamage: 1
   goldPerDamageReceived: 0.3
   startingGold: 50

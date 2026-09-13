@@ -4,7 +4,9 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// 棋子选择面板（战前流程）—— 从 PieceRegistry 读取全部棋子，玩家选 7 个后确认。
+/// 棋子选择面板（战前流程）—— 从 PieceRegistry 读取全部棋子，玩家选满本局配额后确认。
+/// 每方棋子数来自大厅对局配置 SessionConfig.PiecesPerSide（默认 7 = 现状）；
+/// 上限判断 / 计数文本 / 确认按钮可用性 / 提交校验四处统一读取 _pieceCount，确保同一值。
 /// 挂在 Canvas 下的 UI GameObject 上，panelRoot 指向面板根。
 /// 面板打开时 RegisterPanelOpen 屏蔽棋盘点击；关闭时 RegisterPanelClose。
 /// 确认时调用 GameFlowController.OnSelectionConfirmed。
@@ -27,6 +29,9 @@ public class UI_UnitSelection : MonoBehaviour
     private readonly List<UI_ShopItemRefs> _items = new();
     private PlayerSide _currentSide;
 
+    /// <summary>本局每方棋子数（Show 时从大厅对局配置读取；四处硬编码已统一收敛于此）</summary>
+    private int _pieceCount = SessionConfig.DefaultPiecesPerSide;
+
     private void Start()
     {
         if (confirmButton != null)
@@ -41,8 +46,9 @@ public class UI_UnitSelection : MonoBehaviour
     {
         _currentSide = side;
         _selectedIds.Clear();
+        _pieceCount = SessionConfig.PiecesPerSide; // 每方棋子数（大厅配置，缺省 = 现状 7）
         if (titleText != null)
-            titleText.text = $"{(side == PlayerSide.P1 ? "玩家1" : "玩家2")} · 选择 7 个棋子";
+            titleText.text = $"{(side == PlayerSide.P1 ? "玩家1" : "玩家2")} · 选择 {_pieceCount} 个棋子";
         LoadPieces();
         RebuildList();
         if (panelRoot != null) panelRoot.SetActive(true);
@@ -107,7 +113,7 @@ public class UI_UnitSelection : MonoBehaviour
         }
         else
         {
-            if (_selectedIds.Count >= 7) return;
+            if (_selectedIds.Count >= _pieceCount) return;
             _selectedIds.Add(data.id);
             if (item.buttonText != null) item.buttonText.text = "已选 ✓";
         }
@@ -116,13 +122,13 @@ public class UI_UnitSelection : MonoBehaviour
 
     private void UpdateCount()
     {
-        if (countText != null) countText.text = $"已选 {_selectedIds.Count}/7";
-        if (confirmButton != null) confirmButton.interactable = (_selectedIds.Count == 7);
+        if (countText != null) countText.text = $"已选 {_selectedIds.Count}/{_pieceCount}";
+        if (confirmButton != null) confirmButton.interactable = (_selectedIds.Count == _pieceCount);
     }
 
     private void OnConfirm()
     {
-        if (_selectedIds.Count != 7) return;
+        if (_selectedIds.Count != _pieceCount) return;
         var selected = new List<PieceData>();
         foreach (var p in _allPieces)
             if (p != null && _selectedIds.Contains(p.id)) selected.Add(p);

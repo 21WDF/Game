@@ -52,6 +52,11 @@ public class GameFlowController : MonoBehaviour
 
     private void Start()
     {
+        // 场景切换残留防护：PieceLayoutModel 是纯 C# 静态单例，_occupancy 字典跨场景持久，
+        // 返回大厅 / 重开一局后若不清理，上一局残留的占据坐标会干扰新对局的寻路/放置判定。
+        // 每次开局（含开发直进局内场景）在这里清空，随后由 PieceManager.SpawnPiece 重新登记。
+        PieceLayoutModel.Instance.Clear();
+
         // 等棋盘生成完毕后启动战前流程
         Invoke(nameof(BeginPreMatch), 0.3f);
     }
@@ -60,7 +65,9 @@ public class GameFlowController : MonoBehaviour
     {
         // 城邦选择阶段：真实交互 UI（P1 先选、提交后切 P2 = 本地热座驱动方式；
         // 选择/提交/结算逻辑传输无关，联机时换成各自屏幕 + 网络同步即可复用）
-        if (CityStateManager.Instance != null && cityStateSelectionPanel != null)
+        // 大厅配置「无城邦」（SessionConfig.CityStateMode == false）→ 走下方现有跳过分支；
+        // 不新增旁路逻辑，与「缺 CityStateManager/选择面板」共用同一条回退路径（本局城邦 = None）。
+        if (SessionConfig.CityStateMode && CityStateManager.Instance != null && cityStateSelectionPanel != null)
         {
             CurrentPhase = Phase.CityStateSelect;
             _cityP1Submitted = false;
@@ -69,8 +76,8 @@ public class GameFlowController : MonoBehaviour
             return;
         }
 
-        // 兜底：缺 CityStateManager 或选择面板 → 跳过城邦选择（本局城邦 = None）
-        Debug.LogWarning("[GameFlowController] 缺少 CityStateManager 或城邦选择面板，跳过城邦选择（本局城邦 = None）");
+        // 兜底：大厅配置为「无城邦」，或缺 CityStateManager/选择面板 → 跳过城邦选择（本局城邦 = None）
+        Debug.LogWarning($"[GameFlowController] 城邦模式={(SessionConfig.CityStateMode ? "随机城邦" : "无城邦")}，且缺 CityStateManager 或城邦选择面板 → 跳过城邦选择（本局城邦 = None）");
         CurrentPhase = Phase.P1Select;
         unitSelectionPanel?.Show(PlayerSide.P1);
     }
