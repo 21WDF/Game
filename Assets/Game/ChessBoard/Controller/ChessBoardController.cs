@@ -59,7 +59,8 @@ public class ChessBoardController : MonoBehaviour
         }
 
         float hexSize = _config.hexSize;
-        int initialRadius = _config.initialRadius;
+        // 棋盘半径：大厅对局配置优先（SessionConfig.IsConfigured）；开发直进局内场景时回退 GameConfig 现值
+        int initialRadius = SessionConfig.IsConfigured ? SessionConfig.BoardRadius : _config.initialRadius;
         _view = new ChessBoardView(hexTilePrefab, hexSize, transform);
         _model.Initialize(initialRadius, hexSize);
         _view.GenerateView(_model.Coords);

@@ -85,6 +85,14 @@ public class InputHandler : MonoBehaviour
         OnAnyPanelOpenChanged -= HandleAnyPanelOpenChanged;
     }
 
+    // 场景切换残留防护：离开对局场景（返回大厅 / 重开一局）时清空面板开闭计数。
+    // UI_GameOver 等面板在跳转前只 RegisterPanelOpen 不 RegisterPanelClose，若不在此清零，
+    // 计数会带入下一局导致 IsAnyPanelOpen 恒真、棋盘点击/部署被屏蔽。
+    private void OnDestroy()
+    {
+        _openPanelCount = 0;
+    }
+
     private void HandleAnyPanelOpenChanged(bool isOpen)
     {
         if (!isOpen) UpdateHover();
