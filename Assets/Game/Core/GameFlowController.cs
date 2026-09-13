@@ -16,18 +16,12 @@ public class GameFlowController : MonoBehaviour
 {
     public static GameFlowController Instance { get; private set; }
 
-    public enum Phase { None, CityStateSelect, P1Select, P1Deploy, P2Select, P2Deploy, Playing }
+    public enum Phase { None, P1Select, P1Deploy, P2Select, P2Deploy, Playing }
     public Phase CurrentPhase { get; private set; } = Phase.None;
 
     [Header("UI 面板引用（Inspector 拖入）")]
-    [SerializeField] private UI_CityStateSelection cityStateSelectionPanel;
     [SerializeField] private UI_UnitSelection unitSelectionPanel;
     [SerializeField] private UI_Deployment deploymentPanel;
-
-    // 城邦选择提交进度（本地驱动层状态：仅用于判断「双方是否都已提交」以驱动 UI 切换，
-    // 结算本身由 CityStateManager 的提交管线完成，不依赖顺序）
-    private bool _cityP1Submitted;
-    private bool _cityP2Submitted;
 
     // 当前部署方的选中棋子 + 已放置标记（按索引，支持同类型重复选择）
     private readonly List<PieceData> _currentSelection = new();
@@ -57,70 +51,31 @@ public class GameFlowController : MonoBehaviour
         // 每次开局（含开发直进局内场景）在这里清空，随后由 PieceManager.SpawnPiece 重新登记。
         PieceLayoutModel.Instance.Clear();
 
+        // 玩家档案：新局开始 → 重置本局结算幂等标志。
+        // 「重开一局」= 重载本场景 → Start 再跑一次 → 标志自然重置，新局可正常结算；同局不会重复发币。
+        PlayerProfileService.BeginNewGame();
+
         // 等棋盘生成完毕后启动战前流程
         Invoke(nameof(BeginPreMatch), 0.3f);
     }
 
     private void BeginPreMatch()
     {
-        // 城邦选择阶段：真实交互 UI（P1 先选、提交后切 P2 = 本地热座驱动方式；
-        // 选择/提交/结算逻辑传输无关，联机时换成各自屏幕 + 网络同步即可复用）
-        // 大厅配置「无城邦」（SessionConfig.CityStateMode == false）→ 走下方现有跳过分支；
-        // 不新增旁路逻辑，与「缺 CityStateManager/选择面板」共用同一条回退路径（本局城邦 = None）。
-        if (SessionConfig.CityStateMode && CityStateManager.Instance != null && cityStateSelectionPanel != null)
+        // 城邦选择已迁至大厅（UI_CityStateExclusion），此处只消费大厅的结算结果：
+        // 已结算 → 写入 CityStateManager（各城邦专属机制照常生效）+ 战争之城棋盘扩展（幂等），
+        //           随后消费配置（返回大厅后可重新选择）；
+        // 未结算（无城邦模式 / 开发直进局内场景）→ 本局城邦 = None，直接进入选棋子。
+        if (SessionConfig.CityStateResolved)
         {
-            CurrentPhase = Phase.CityStateSelect;
-            _cityP1Submitted = false;
-            _cityP2Submitted = false;
-            cityStateSelectionPanel.Show(PlayerSide.P1);
-            return;
+            var resolved = SessionConfig.ResolvedCityState;
+            CityStateManager.Instance?.SetCityState(resolved);
+            WarCityManager.Instance?.ExpandBoard();
+            SessionConfig.ResetCityStateSelection(); // 消费：再次开始时可重新选择
+            Debug.Log($"[GameFlowController] 应用大厅城邦结算：{resolved} → 进入选棋子");
         }
 
-        // 兜底：大厅配置为「无城邦」，或缺 CityStateManager/选择面板 → 跳过城邦选择（本局城邦 = None）
-        Debug.LogWarning($"[GameFlowController] 城邦模式={(SessionConfig.CityStateMode ? "随机城邦" : "无城邦")}，且缺 CityStateManager 或城邦选择面板 → 跳过城邦选择（本局城邦 = None）");
         CurrentPhase = Phase.P1Select;
         unitSelectionPanel?.Show(PlayerSide.P1);
-    }
-
-    // ==========================================
-    //  城邦选择（UI_CityStateSelection 调用）
-    // ==========================================
-    /// <summary>某方提交心仪城邦（UI 采集后调用；双提交后由 CityStateManager 自动「求交集 + 随机」结算）。
-    /// 驱动逻辑：另一方未提交 → 切换面板到另一方；双方都已提交 → 显示揭晓。</summary>
-    public void OnCityStateSelectionSubmitted(PlayerSide side, List<CityStateKind> choices)
-    {
-        var manager = CityStateManager.Instance;
-        if (manager == null || CurrentPhase != Phase.CityStateSelect) return;
-
-        manager.SubmitSelection(side, choices);
-        if (side == PlayerSide.P1) _cityP1Submitted = true; else _cityP2Submitted = true;
-        Debug.Log($"[GameFlowController] {side} 提交心仪城邦 [{string.Join(", ", choices)}]");
-
-        if (_cityP1Submitted && _cityP2Submitted)
-        {
-            // 双方都已提交：结算已由提交管线完成，城邦已写入状态（无重合时为 None）
-            cityStateSelectionPanel?.ShowResult(manager.CurrentCityState);
-        }
-        else
-        {
-            // 本地热座驱动：切换到另一方选择（逻辑层不依赖此顺序）
-            cityStateSelectionPanel?.Show(side == PlayerSide.P1 ? PlayerSide.P2 : PlayerSide.P1);
-        }
-    }
-
-    /// <summary>揭晓确认（UI 揭晓视图的继续按钮）→ 进入 P1 选棋子，其后流程顺序不变</summary>
-    public void OnCityStateRevealConfirmed()
-    {
-        if (CurrentPhase != Phase.CityStateSelect) return;
-
-        // 战争之城·棋盘扩展（城邦揭晓确认后、进入选棋子前一次性完成；非战争城邦/已扩展
-        // 由 WarCityManager 内聚跳过，其余城邦零影响）
-        WarCityManager.Instance?.ExpandBoard();
-
-        cityStateSelectionPanel?.Hide();
-        CurrentPhase = Phase.P1Select;
-        unitSelectionPanel?.Show(PlayerSide.P1);
-        Debug.Log("[GameFlowController] 城邦选择完成，进入 P1 选棋子");
     }
 
     // ==========================================

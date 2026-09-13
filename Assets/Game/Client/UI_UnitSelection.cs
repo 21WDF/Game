@@ -4,8 +4,9 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// 棋子选择面板（战前流程）—— 从 PieceRegistry 读取全部棋子，玩家选满本局配额后确认。
-/// 每方棋子数来自大厅对局配置 SessionConfig.PiecesPerSide（默认 7 = 现状）；
+/// 棋子选择面板（战前流程）—— 从玩家档案「已拥有」棋池读取（PlayerProfileService.GetOwnedPieces），玩家选满本局配额后确认。
+/// 每方棋子数来自大厅对局配置 SessionConfig.PiecesPerSide（默认 7 = 现状），
+/// Show 时按「已拥有」数量防御性钳制（C-3：配置值未解锁 → 回退最大已解锁选项）；
 /// 上限判断 / 计数文本 / 确认按钮可用性 / 提交校验四处统一读取 _pieceCount，确保同一值。
 /// 挂在 Canvas 下的 UI GameObject 上，panelRoot 指向面板根。
 /// 面板打开时 RegisterPanelOpen 屏蔽棋盘点击；关闭时 RegisterPanelClose。
@@ -46,7 +47,10 @@ public class UI_UnitSelection : MonoBehaviour
     {
         _currentSide = side;
         _selectedIds.Clear();
-        _pieceCount = SessionConfig.PiecesPerSide; // 每方棋子数（大厅配置，缺省 = 现状 7）
+        // 每方棋子数（大厅配置，缺省 = 现状 7）：
+        // 防御性钳制（C-3）——配置值若超出当前「已拥有」可解锁的最大值（如开发直进局内场景 / 删档后），
+        // 回退到最大已解锁选项，绝不出现「选了 7 但只有 4 个棋子」。
+        _pieceCount = PlayerProfileService.GetValidPieceCount(SessionConfig.PiecesPerSide);
         if (titleText != null)
             titleText.text = $"{(side == PlayerSide.P1 ? "玩家1" : "玩家2")} · 选择 {_pieceCount} 个棋子";
         LoadPieces();
@@ -65,13 +69,8 @@ public class UI_UnitSelection : MonoBehaviour
     private void LoadPieces()
     {
         _allPieces.Clear();
-        var registry = PieceManager.Instance?.registry;
-        if (registry != null && registry.pieces != null)
-        {
-            // 召唤物（傀儡等）不进入选人池：只能由大招投放
-            foreach (var p in registry.pieces)
-                if (p != null && !p.isSummon) _allPieces.Add(p);
-        }
+        // 棋池收窄（C-1）：只列出当前账号已拥有的棋子（服务内已过滤召唤物；联机时按各自档案判断）。
+        _allPieces.AddRange(PlayerProfileService.GetOwnedPieces());
     }
 
     private void RebuildList()

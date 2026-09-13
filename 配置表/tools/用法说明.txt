@@ -1,0 +1,12 @@
+填表 ：直接编辑两张生成器表的数据行。枚举列写枚举名（`Intermediate` ）；bool 写`True/False` ；passives 格式`className|jsonParams|passiveName|isUnique|uniqueId` ，多个被动用`;` 分隔（如`LifestealPassive|{"baseHeal":0,"percent":30}||False|` ），空段可留空。icon 列不改。
+
+跑脚本 （在`配置表\tools\` 下）：
+python writeback_generators.py --dry-run          # 先干跑看差异 ← 永远先跑这个，只打印 旧值→新值
+python writeback_generators.py --sheet 道具       # 只回写某张表
+python writeback_generators.py                    # 正式回写（先备份再写）`
+
+回滚 ：写盘前自动备份到`配置表\_backup_<时间戳>\` ；或`git checkout -- <改动资产路径>` （若项目在 git 管理下）。回滚后从备份原样拷回亦可。
+
+重建表（资产侧改了值后刷新） ：`python build_generators.py` 会按当前资产重填两张表；`python build_lookup_sheets.py` 会重写速查表 sheet（幂等）。
+
+第一次用务必先 --dry-run，它能让你在真正动资产之前看到"哪件装备的哪个字段要从多少改成多少"。

@@ -52,3 +52,8 @@ Assets/MyToonShader/UnityGenshinToonShader/.git/
 # ===== 打包产物（不入版本库：Assets.zip ≈99MB，已贴近 GitHub 单文件 100MB 上限）=====
 /Assets.zip
 /*.zip
+
+# ===== Python 缓存与配置表回写备份（配置表\tools\ 运行产物）=====
+__pycache__/
+*.pyc
+/配置表/_backup_*/

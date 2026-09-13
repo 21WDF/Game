@@ -16,6 +16,7 @@ public class UI_GameOver : MonoBehaviour
 {
     [SerializeField] private GameObject panelRoot;
     [SerializeField] private TextMeshProUGUI resultText;
+    [SerializeField] private TextMeshProUGUI rewardText;   // 本局金币结算显示（如 "+300 金币"；Inspector 可选，不拖则不显示）
     [SerializeField] private Button restartButton;
     [SerializeField] private Button menuButton;   // 返回大厅（Inspector 拖入；未接线则无此入口）
 
@@ -47,6 +48,14 @@ public class UI_GameOver : MonoBehaviour
         if (panelRoot != null) panelRoot.SetActive(true);
         if (resultText != null)
             resultText.text = $"{(winner == PlayerSide.P1 ? "玩家1" : "玩家2")} 获胜！";
+
+        // 玩家档案结算（唯一发币点 PlayerProfileService.SettleGameOutcome，幂等：同局只发一次）。
+        // 参数化「本机是否获胜」：热座下本机视角固定 P1 → winner==P1；
+        // 联机预留：此处改为 winner == 本机阵营（或由网络层直接调结算），结算逻辑与 UI 零改动。
+        int goldGained = PlayerProfileService.SettleGameOutcome(winner == PlayerSide.P1);
+        if (rewardText != null)
+            rewardText.text = goldGained >= 0 ? $"本局金币 +{goldGained}" : string.Empty;
+
         InputHandler.RegisterPanelOpen();
         Debug.Log($"[UI_GameOver] 游戏结束，{winner} 获胜");
     }

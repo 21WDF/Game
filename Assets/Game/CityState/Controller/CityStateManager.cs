@@ -7,10 +7,14 @@ using UnityEngine;
 ///
 /// 城邦系统一期职责（仅框架，无具体城邦机制）：
 ///   1) 持有本局生效城邦（存于 Model，不挂任何 UI），变化时触发 OnCityStateChanged 事件；
-///   2) 城邦选择流程：双方各提交 4 个心仪城邦 → 纯函数求交集 + roll 定 1 个。
-///      随机入口收敛到本类的 <see cref="ResolveCityState"/>（将来网络化只需替换此入口为同步 seed）；
+///   2) 城邦选择流程：大厅 UI_CityStateExclusion 记录双方心仪城邦（本地热座轮流；联机由网络同步），
+///      「开始游戏」点击后经 <see cref="ResolvePendingSelections"/> 结算。随机入口收敛到
+///      <see cref="ResolveCityState"/>（将来网络化只需替换此入口为同步 seed）；
 ///   3) 商店过滤查询 <see cref="ShouldShowEquipment"/>（供 UI_ShopPanel 城邦 Tab 使用）；
 ///   4) 持有城邦专属机制实例（默认空实现 <see cref="NullCityStateMechanism"/>，具体机制二期接入）。
+/// 联机预留接入点（UI 只依赖这三个入口，接入网络时 UI 零改动）：
+///   ① 本地提交入口 <see cref="SubmitSelection"/>；② 双方提交状态查询 <see cref="HasBothSubmitted"/>；
+///   ③ 结算入口 <see cref="ResolvePendingSelections"/>（内部唯一随机点 <see cref="ResolveCityState"/>）。
 /// </summary>
 public class CityStateManager : MonoBehaviour
 {
@@ -73,36 +77,33 @@ public class CityStateManager : MonoBehaviour
     }
 
     // ==========================================
-    //  城邦选择流程（一期：GameFlowController 临时占位调用；二期：选择 UI 调用，管线不变）
+    //  城邦选择流程（一期：大厅 UI_CityStateExclusion 调用；管线预留联机接入点 ①②③）
     // ==========================================
-    /// <summary>一方提交 4 个心仪城邦；双方都提交后自动「求交集 + 随机」定出本局城邦。
-    /// 返回 true = 本局城邦已确定（本次调用触发了结算）。</summary>
-    public bool SubmitSelection(PlayerSide side, IReadOnlyList<CityStateKind> choices)
+    /// <summary>① 本地提交入口（UI 唯一调用）：记录一方的心仪城邦选择，**不结算**（结算后移至「开始游戏」点击后）。
+    /// 联机预留：改为把本地选择上报网络层（对方提交状态由网络同步），本方法签名与调用方零改动。</summary>
+    public void SubmitSelection(PlayerSide side, IReadOnlyList<CityStateKind> choices)
     {
-        if (_model == null) return false;
+        if (_model == null) return;
         _selections[side] = choices != null ? new List<CityStateKind>(choices) : new List<CityStateKind>();
-        return TryResolveFromSelections();
+        Debug.Log($"[CityStateManager] {side} 已提交城邦选择（{_selections[side].Count} 个）");
     }
 
-    /// <summary>从双方已提交的选择结算本局城邦（双方均已提交才执行；重复调用会重新随机）</summary>
-    public bool TryResolveFromSelections()
+    /// <summary>② 双方提交状态查询（统一查询；本地实现 = 该方选择已记录）。
+    /// 联机预留：实现改为网络同步的对方提交状态——UI 不感知对方是否在同一台机器。</summary>
+    public bool HasSideSubmitted(PlayerSide side) => _selections.ContainsKey(side);
+
+    /// <summary>双方是否都已提交（「开始游戏」的可用条件；UI 只查不存）</summary>
+    public bool HasBothSubmitted => HasSideSubmitted(PlayerSide.P1) && HasSideSubmitted(PlayerSide.P2);
+
+    /// <summary>③ 结算入口（唯一随机入口的对外封装）：读取双方已存选择 → <see cref="ResolveCityState"/> → 返回本局城邦。
+    /// 由 UI_MainMenu 在「开始游戏」点击后调用；不在本方法之外产生任何随机。
+    /// 联机预留：ResolveCityState 内部换网络权威 seed 的确定性 roll，本方法与调用方零改动。</summary>
+    public CityStateKind ResolvePendingSelections()
     {
-        if (_model == null) return false;
+        if (_model == null) return CityStateKind.None;
         if (!_selections.TryGetValue(PlayerSide.P1, out var p1) || !_selections.TryGetValue(PlayerSide.P2, out var p2))
-            return false;
-
-        CityStateKind resolved = ResolveCityState(p1, p2);
-        if (resolved == CityStateKind.None)
-        {
-            Debug.LogWarning("[CityStateManager] 双方心仪城邦无重合，本局城邦未能确定（保持 None）");
-            return false;
-        }
-
-        SetCityState(resolved);
-
-        // 机制骨架钩子①：城邦确定时通知（一期空实现，无行为）
-        _mechanism?.OnGameStart(resolved);
-        return true;
+            return CityStateKind.None;
+        return ResolveCityState(p1, p2);
     }
 
     /// <summary>唯一随机入口：输入双方选择，内部产生随机 roll 并调用纯函数 Resolve。

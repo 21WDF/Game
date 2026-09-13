@@ -42,6 +42,8 @@
 | **大招与能量** | 能量满 100 释放（移动 +5 / 攻击 +15）；支持敌方单体 / 自身增益 / 指定格子三类目标模式 |
 | **元素格** | 大招可将作用范围内格子转为元素格，持续若干回合 |
 | **棋子表现** | 全程序化动作（攻击前冲 / 受击抖动 / 死亡缩放 / 召唤出现）+ 零素材视觉反馈（受击闪白 / 元素附着光环 / 反应脉冲 / 大招扩散）；**不依赖动画文件与特效素材**，动作由 DOTween 驱动 |
+| **大厅与对局配置** | 独立大厅场景为正式入口；开局前配置棋盘半径（4/5/6）、每方棋子数（3/5/7）、城邦模式（随机城邦 / 无城邦）。**城邦排除法选择**（双方各划掉 2 个，6 个城邦取剩余候选随机定 1 个）与结算均在开局前完成 |
+| **玩家档案与金币** | 本地账号档案（密码 SHA256 + 盐哈希存储，认证走 `IAuthProvider` 接口、预留联机替换）；局外金币：每局 +100、胜利额外 +200；金币用于购买棋子解锁棋池，**棋池数量决定「每方棋子数」选项的解锁**（拥有数 ≥ 该选项值才可选） |
 
 ---
 
@@ -59,13 +61,22 @@ Assets/
 │   ├── GridItem/             # 棋盘道具：扩展 / 删除 / 传送
 │   ├── CityState/            # 城邦：Trade（含拍卖行 / 地下交易）/ Element / Monsoon / War
 │   ├── ActionPoint/ Gold/ Turn/ Battle/   # 基础资源与回合流程
-│   ├── Client/               # 输入、相机、UI（18 个 UI 脚本）、浮动文字
+│   ├── Client/               # 输入、相机、UI 脚本、浮动文字
+│   ├── PlayerProfile/        # 玩家档案：Model 数据 / Data 持久化 / Auth 认证接口与本地实现 / Config 配置 SO
 │   └── Resources/            # ScriptableObject 配置资产
 ├── Prefabs/                  # 棋盘格 / 棋子 / 商店 / Tooltip 等 17 个预制体
 ├── Models/                   # 角色模型
 ├── Materials/                # 六边形棋盘高亮材质（默认 / 移动 / 攻击 / 敌方 / 悬停）
 ├── Settings/                 # URP 双渲染管线配置（PC / Mobile）
-└── Scenes/SampleScene.unity  # 主场景
+└── Scenes/                   # MainMenu.unity（大厅入口，Build index 0）+ SampleScene.unity（局内，index 1）
+
+配置表/                        # 数值配置表与生成器（不入 Assets，放项目根）
+├── 全局参数配置表.xlsx         # 全部全局参数速查
+├── 装备配置生成器.xlsx         # 装备表单 → 回写 .asset
+├── 道具配置生成器.xlsx         # 棋盘道具表单 → 回写 .asset
+├── 棋子配置生成器.xlsx         # 棋子表单（参数 → jsonParams）
+├── 被动效果配置生成器.xlsx     # 被动表单（参数 → jsonParams）
+└── tools/                     # 生成与回写脚本（build_* / writeback_generators.py）
 ```
 
 ---
@@ -106,8 +117,10 @@ Assets/
 **运行**
 
 1. 用 Unity Hub 以 6000.3.19f1 打开本项目（首次打开需等待资源导入）
-2. 打开 `Assets/Scenes/SampleScene.unity`
-3. 进入 Play 模式，从选人界面开始
+2. 打开 `Assets/Scenes/MainMenu.unity`（**大厅**：对局配置 + 城邦排除 + 开始游戏）
+3. 进入 Play 模式，点「开始游戏」进入对局
+
+> **调试捷径**：也可直接打开 `Assets/Scenes/SampleScene.unity` 按 Play —— 会跳过大厅、以默认配置开局（本局无城邦），省去每次过大厅的步骤。
 
 **操作**
 
@@ -134,8 +147,11 @@ Assets/
 
 | 文档 | 说明 |
 |---|---|
-| 棋子配置生成器.xlsx | 棋子数值批量生成 |
-| 被动效果配置生成器.xlsx | 被动效果参数批量生成 |
+| 全局参数配置表.xlsx | **全部全局参数速查**（GameConfig / 元素格 / 相机 / 季风 / 贸易 / 战争） |
+| 装备配置生成器.xlsx | 装备属性表单（24 件）；配 `tools/writeback_generators.py` 回写 `.asset`，**支持 `--dry-run` 干跑**、写前自动备份 |
+| 道具配置生成器.xlsx | 棋盘道具表单（3 件）；回写方式同上 |
+| 棋子配置生成器.xlsx | 棋子数值批量生成（参数 → jsonParams） |
+| 被动效果配置生成器.xlsx | 被动效果参数批量生成（参数 → jsonParams） |
 
 ---
 
