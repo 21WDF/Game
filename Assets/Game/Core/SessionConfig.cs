@@ -32,6 +32,29 @@ public static class SessionConfig
     /// <summary>是否已被大厅显式配置（false = 开发直进局内场景，半径应回退 GameConfig 现值）</summary>
     public static bool IsConfigured { get; private set; }
 
+    // ---- 城邦选择结算结果（大厅排除流程写入；局内读取消费）----
+    /// <summary>本局已结算的城邦（None = 未结算 / 结算为无城邦）</summary>
+    public static CityStateKind ResolvedCityState { get; private set; } = CityStateKind.None;
+
+    /// <summary>大厅城邦是否已结算（「开始游戏」点击后写入；局内消费后重置）。
+    /// 注意：「开始游戏」的可用条件 = 双方提交完成（查 CityStateManager.HasBothSubmitted），不是本字段。</summary>
+    public static bool CityStateResolved { get; private set; }
+
+    /// <summary>大厅城邦结算完成时写入本局城邦（唯一写入入口；结算时点 = 「开始游戏」点击后）</summary>
+    public static void ApplyCityState(CityStateKind kind)
+    {
+        ResolvedCityState = kind;
+        CityStateResolved = true;
+        Debug.Log($"[SessionConfig] 城邦已结算：{kind}");
+    }
+
+    /// <summary>重置城邦选择状态（局内消费后 / 大厅切回「无城邦」时调用，保证再次开始时可重新选择）</summary>
+    public static void ResetCityStateSelection()
+    {
+        ResolvedCityState = CityStateKind.None;
+        CityStateResolved = false;
+    }
+
     /// <summary>大厅「开始游戏」写入对局参数（唯一写入入口；局内只读）。越界值收敛到合法选项。</summary>
     public static void Apply(int boardRadius, int piecesPerSide, bool cityStateMode)
     {
