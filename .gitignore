@@ -42,8 +42,8 @@ Thumbs.db
 !/[Pp]ackages/manifest.json
 !/[Pp]ackages/packages-lock.json
 
-# ===== 保留 .workbuddy 但忽略内部临时 =====
-.workbuddy/artifacts/
+# ===== .workbuddy 本地工作目录，不入版本库 =====
+.workbuddy/
 
 # ===== 第三方插件嵌套 .git（追踪插件内容，但不追踪其内部版本控制历史）=====
 Assets/Editor/Pmx2Fbx/.git/
