@@ -45,6 +45,11 @@ Thumbs.db
 # ===== .workbuddy 本地工作目录，不入版本库 =====
 .workbuddy/
 
+# ===== 根目录污染防护：脚本的 .meta 只应存在于 Assets 内 =====
+/*.cs.meta
+/*.cs
+/PMX2FBX_InstallerChecked.txt
+
 # ===== 第三方插件嵌套 .git（追踪插件内容，但不追踪其内部版本控制历史）=====
 Assets/Editor/Pmx2Fbx/.git/
 Assets/MyToonShader/UnityGenshinToonShader/.git/
